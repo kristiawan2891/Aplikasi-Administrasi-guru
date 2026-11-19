@@ -1,0 +1,1973 @@
+# MASTER PROMPT — PEMBUATAN APLIKASI GURU ADMIN PRO
+## SISTEM ADMINISTRASI GURU TERINTEGRASI SATU TAHUN AJARAN
+
+Bertindaklah sebagai Senior Software Engineer, Full Stack Developer, Software Architect, UI/UX Designer, Database Engineer, AI Engineer, ahli pendidikan Indonesia, ahli Kurikulum Merdeka, serta ahli administrasi pembelajaran dan penilaian sekolah.
+
+Saya ingin Anda membangun sebuah aplikasi web bernama:
+
+**GURU ADMIN PRO**
+
+**Tagline:**
+"Semua Administrasi Guru dalam Satu Sistem, Satu Tahun Pembelajaran."
+
+Aplikasi ini dirancang untuk membantu guru mengelola seluruh administrasi pembelajaran selama satu tahun ajaran secara terintegrasi, mulai dari identitas sekolah, data kelas, data siswa, perencanaan pembelajaran, perangkat ajar, asesmen, presensi, jurnal mengajar, pengolahan nilai, deskripsi rapor, hingga pembuatan paket administrasi untuk supervisi kepala sekolah.
+
+Aplikasi harus benar-benar berfungsi dan dapat digunakan, bukan sekadar tampilan demo, prototype, mockup, atau dashboard statis.
+
+Prioritas utama:
+1. Mempermudah pekerjaan administrasi guru.
+2. Mengurangi penginputan data berulang.
+3. Semua menu terintegrasi dalam satu database.
+4. Membantu membuat administrasi pembelajaran selama satu tahun ajaran.
+5. Mempermudah penyusunan dokumen berdasarkan minggu efektif.
+6. Mempermudah pengelolaan nilai dan presensi.
+7. Mempermudah pembuatan deskripsi rapor berdasarkan data siswa.
+8. Menghasilkan dokumen Microsoft Word DOCX yang rapi, dapat diedit, dan siap dicetak.
+9. Memungkinkan penggunaan format administrasi yang sudah ditentukan sekolah.
+10. Menyediakan backup dan restore agar data tidak hilang.
+11. Mudah digunakan oleh guru yang tidak memiliki kemampuan pemrograman.
+
+Seluruh aplikasi menggunakan Bahasa Indonesia.
+
+==================================================
+A. TEKNOLOGI DAN ARSITEKTUR APLIKASI
+==================================================
+
+Bangun aplikasi menggunakan teknologi modern yang kompatibel dan dapat dijalankan pada lingkungan Gemini AI Studio.
+
+Prioritaskan:
+- React
+- TypeScript
+- Vite jika sesuai
+- Tailwind CSS atau sistem styling modern
+- Komponen UI yang konsisten
+- Database terstruktur
+- IndexedDB untuk penyimpanan lokal persisten jika aplikasi offline/local
+- Supabase atau database cloud jika aplikasi membutuhkan sinkronisasi online
+- Library pembuat DOCX yang benar
+- Library pembaca dan pembuat file Excel
+- ZIP generator untuk paket dokumen
+
+Pilih arsitektur terbaik berdasarkan lingkungan deployment yang tersedia.
+
+Jangan membuat seluruh aplikasi dalam satu file besar. Gunakan struktur modular yang rapi dan mudah dikembangkan.
+
+Pisahkan:
+- Frontend/UI
+- Komponen
+- Database
+- Model data
+- Business logic
+- AI service
+- Document generator
+- DOCX generator
+- Excel import/export
+- ZIP generator
+- Validasi
+- Backup/restore
+
+Buat sistem database yang saling terhubung dengan relasi yang jelas.
+
+Jika membutuhkan API Key AI:
+- Jangan menampilkan API Key di frontend.
+- Gunakan mekanisme environment variable atau backend yang aman.
+- Berikan petunjuk konfigurasi yang jelas.
+- Aplikasi tetap dapat digunakan untuk fungsi administrasi dasar meskipun AI belum diaktifkan.
+
+==================================================
+B. IDENTITAS SEKOLAH, GURU, DAN KEPALA SEKOLAH
+==================================================
+
+Buat menu:
+
+IDENTITAS DAN PENGATURAN
+
+Pengguna dapat mengisi data secara manual dan mengubahnya kapan saja.
+
+1. IDENTITAS SEKOLAH
+
+- Nama sekolah
+- NPSN
+- Jenjang sekolah
+- Alamat
+- Desa/Kelurahan
+- Kecamatan
+- Kabupaten/Kota
+- Provinsi
+- Tahun ajaran
+- Semester aktif
+- Kurikulum
+- Logo sekolah
+- Nomor telepon sekolah
+- Email sekolah
+- Informasi tambahan
+
+2. IDENTITAS GURU
+
+- Nama lengkap
+- NIP
+- NUPTK
+- Pangkat/Golongan
+- Jabatan
+- Mata pelajaran
+- Kelas yang diajar
+- Nomor telepon
+- Email
+
+3. IDENTITAS KEPALA SEKOLAH
+
+- Nama lengkap kepala sekolah
+- NIP
+- Pangkat/Golongan
+- Jabatan
+
+Sediakan tombol:
+- Simpan
+- Edit
+- Reset dengan konfirmasi
+- Unggah logo
+- Pratinjau identitas
+
+Semua identitas otomatis digunakan dalam dokumen yang dibuat oleh aplikasi.
+
+Guru tidak boleh diminta mengisi identitas yang sama berulang kali.
+
+Identitas terhubung dengan:
+- ATP
+- PROTA
+- PROMES
+- Silabus
+- Modul ajar/RPP
+- LKPD
+- Kisi-kisi
+- Soal
+- Asesmen
+- Presensi
+- Jurnal mengajar
+- Daftar nilai
+- Rekap nilai
+- Rapor
+- Paket supervisi
+
+==================================================
+C. DASHBOARD UTAMA
+==================================================
+
+Buat dashboard profesional yang menampilkan ringkasan administrasi guru dalam satu tampilan.
+
+Tampilkan:
+
+- Nama guru
+- Nama sekolah
+- Tahun ajaran aktif
+- Semester
+- Mata pelajaran
+- Jumlah kelas/rombel
+- Jumlah siswa
+- Jumlah CP
+- Jumlah TP
+- Jumlah ATP
+- Jumlah modul ajar
+- Jumlah LKPD
+- Jumlah asesmen
+- Jumlah jurnal
+- Jumlah nilai yang sudah diinput
+- Persentase kelengkapan administrasi
+
+Buat kartu statistik, grafik, dan indikator progres.
+
+Kategori progres:
+- Administrasi identitas
+- Administrasi kelas
+- Perencanaan
+- Perangkat pembelajaran
+- Asesmen
+- Presensi
+- Jurnal
+- Pengolahan nilai
+- Pelaporan
+
+Status:
+- Belum dibuat
+- Dalam proses
+- Selesai
+- Perlu diperbaiki
+
+Tambahkan:
+- Kalender akademik
+- Minggu efektif
+- Agenda sekolah
+- Jadwal asesmen
+- Tugas administrasi
+- Dokumen terbaru
+- Aktivitas terakhir
+- Notifikasi kelengkapan dokumen
+
+Dashboard harus dinamis berdasarkan data nyata, bukan angka dummy.
+
+==================================================
+D. DATA TAHUN AJARAN DAN ARSIP
+==================================================
+
+Buat sistem pengelolaan tahun ajaran.
+
+Guru dapat:
+- Membuat tahun ajaran baru
+- Memilih tahun ajaran aktif
+- Mengatur semester
+- Mengarsipkan tahun sebelumnya
+- Membuka kembali arsip
+- Menyalin struktur perencanaan tahun sebelumnya
+- Menyalin data CP/TP/ATP jika relevan
+- Menyalin template administrasi
+- Memulai tahun baru tanpa kehilangan riwayat sebelumnya
+
+Data setiap tahun ajaran harus dapat dipisahkan tetapi dapat diakses kembali.
+
+Jangan mencampur nilai siswa dan presensi dari tahun yang berbeda.
+
+==================================================
+E. DATA KELAS, ROMBEL, DAN SISWA
+==================================================
+
+Buat menu:
+
+DATA KELAS DAN SISWA
+
+1. DATA KELAS
+
+Guru dapat membuat kelas atau rombel tanpa batasan jumlah.
+
+Contoh:
+- 7A
+- 7B
+- 7C
+- 8A
+- 8B
+- 8C
+- 9A
+- 9B
+- 9C
+
+Data kelas:
+- Tingkat
+- Nama rombel
+- Tahun ajaran
+- Semester
+- Wali kelas
+- Mata pelajaran
+- Keterangan
+
+Fitur:
+- Tambah kelas
+- Edit
+- Hapus
+- Cari
+- Filter
+- Impor
+- Ekspor
+- Cetak
+
+2. DATA SISWA
+
+Data:
+- Nomor urut
+- NIS
+- NISN
+- Nama lengkap
+- Jenis kelamin
+- Kelas/rombel
+- Status
+- Keterangan
+
+Fitur:
+- Input manual
+- Edit
+- Hapus
+- Pindah kelas
+- Impor Excel
+- Ekspor Excel
+- Cetak daftar siswa
+- Pencarian
+- Sortir
+
+Sediakan template Excel untuk mengimpor data siswa.
+
+Database kelas dan siswa harus menjadi sumber utama seluruh aplikasi.
+
+Ketika siswa ditambahkan, diubah, atau dipindahkan, semua menu terkait harus menggunakan data terbaru sesuai aturan tahun ajaran dan kelas.
+
+==================================================
+F. KALENDER PENDIDIKAN DAN MINGGU EFEKTIF
+==================================================
+
+Buat menu:
+
+KALENDER PENDIDIKAN DAN MINGGU EFEKTIF
+
+Input:
+- Awal tahun ajaran
+- Akhir tahun ajaran
+- Awal semester 1
+- Akhir semester 1
+- Awal semester 2
+- Akhir semester 2
+- Hari libur nasional
+- Hari libur sekolah
+- Kegiatan sekolah
+- PTS/STS
+- PAS/SAS
+- Projek
+- Kegiatan khusus
+- Hari pembelajaran
+- Jam pelajaran per minggu
+
+Sistem menghitung secara otomatis:
+- Jumlah hari kalender
+- Hari libur
+- Hari efektif
+- Minggu efektif
+- Minggu efektif semester 1
+- Minggu efektif semester 2
+- Alokasi pembelajaran
+- Perkiraan waktu setiap materi
+
+Sediakan tampilan:
+- Kalender bulanan
+- Kalender tahunan
+- Tabel minggu efektif
+- Rekap semester
+
+Minggu efektif harus menjadi acuan utama untuk:
+- ATP
+- PROTA
+- PROMES
+- Silabus
+- Modul ajar
+- Jadwal pembelajaran
+- Asesmen
+
+Guru dapat mengedit kalender secara manual.
+
+==================================================
+G. CAPAIAN PEMBELAJARAN (CP)
+==================================================
+
+Buat menu:
+
+CAPAIAN PEMBELAJARAN
+
+Guru dapat:
+- Input CP manual
+- Menambahkan beberapa CP
+- Memilih fase
+- Memilih kelas
+- Memilih mata pelajaran
+- Mengelompokkan berdasarkan elemen
+- Mengedit
+- Menghapus
+- Menyimpan
+- Membuat draft CP dengan AI berdasarkan referensi
+- Mengimpor CP dari dokumen
+
+CP harus memiliki:
+- Tahun ajaran
+- Mata pelajaran
+- Fase
+- Kelas
+- Elemen
+- Deskripsi CP
+- Sumber/referensi jika tersedia
+
+AI tidak boleh mengarang CP resmi dan mengklaimnya sebagai dokumen resmi.
+
+Jika CP dihasilkan AI, beri label draft yang harus diverifikasi guru.
+
+==================================================
+H. TUJUAN PEMBELAJARAN (TP)
+==================================================
+
+Buat menu:
+
+TUJUAN PEMBELAJARAN
+
+TP harus dibuat berdasarkan CP yang dipilih.
+
+Data TP:
+- Kode TP
+- CP terkait
+- Elemen
+- Tujuan pembelajaran
+- Materi
+- Kelas
+- Semester
+- Alokasi waktu
+- Tingkat kesulitan
+- Urutan pembelajaran
+
+Fitur:
+- Input manual
+- Generate menggunakan AI
+- Edit
+- Hapus
+- Duplikasi
+- Pengelompokan
+- Pengurutan
+- Pencarian
+
+AI harus membantu merumuskan TP yang:
+- Jelas
+- Terukur
+- Relevan
+- Sesuai kelas
+- Sesuai materi
+- Sesuai CP
+
+TP harus menjadi data utama bagi ATP, PROTA, PROMES, silabus, modul ajar, LKPD, dan asesmen.
+
+==================================================
+I. ATP (ALUR TUJUAN PEMBELAJARAN)
+==================================================
+
+Buat menu:
+
+ALUR TUJUAN PEMBELAJARAN
+
+ATP dibuat berdasarkan CP dan TP yang sudah tersimpan.
+
+Data ATP:
+- Identitas sekolah
+- Mata pelajaran
+- Kelas
+- Fase
+- Semester
+- Tahun ajaran
+- CP
+- Urutan TP
+- Materi
+- Alokasi waktu
+- Minggu rencana pembelajaran
+- Keterangan
+
+Fitur:
+- Generate ATP otomatis
+- ATP manual
+- AI membantu menyusun alur
+- Drag-and-drop urutan TP
+- Edit
+- Simpan
+- Pratinjau
+- Unduh DOCX
+
+ATP harus menyesuaikan minggu efektif dan distribusi waktu yang tersedia.
+
+==================================================
+J. PROTA (PROGRAM TAHUNAN)
+==================================================
+
+Buat menu:
+
+PROGRAM TAHUNAN (PROTA)
+
+PROTA mengambil data dari:
+- CP
+- TP
+- ATP
+- Kalender pendidikan
+- Minggu efektif
+- Alokasi waktu mata pelajaran
+
+Isi tabel:
+- Nomor
+- Materi
+- CP
+- TP
+- Semester
+- Alokasi waktu
+- Minggu rencana
+- Keterangan
+
+Fitur:
+- Generate otomatis
+- Edit pembagian materi
+- Penyesuaian minggu
+- Penyesuaian alokasi waktu
+- Tambah/hapus baris
+- Simpan
+- Pratinjau
+- Unduh DOCX
+
+PROTA harus realistis sesuai jumlah minggu efektif.
+
+==================================================
+K. PROMES (PROGRAM SEMESTER)
+==================================================
+
+Buat menu:
+
+PROGRAM SEMESTER (PROMES)
+
+PROMES harus mengambil data dari PROTA dan minggu efektif semester.
+
+Isi:
+- Bulan
+- Minggu
+- Tanggal
+- Materi
+- TP
+- Alokasi waktu
+- Kegiatan
+- Asesmen
+- Keterangan
+
+Memperhitungkan:
+- Minggu efektif
+- Hari libur
+- Kegiatan sekolah
+- Asesmen
+- PTS/STS
+- PAS/SAS
+- Projek
+- Remedial
+- Pengayaan
+
+Fitur:
+- Generate PROMES
+- Edit jadwal
+- Pindah materi antar minggu
+- Penyesuaian jadwal
+- Simpan
+- Pratinjau
+- Unduh DOCX
+
+Jangan menghapus TP ketika guru mengubah jadwal.
+
+==================================================
+L. SILABUS
+==================================================
+
+Buat menu:
+
+SILABUS
+
+Silabus terintegrasi dengan CP, TP, ATP, PROTA, dan PROMES.
+
+Isi:
+- Identitas sekolah
+- Guru
+- Mata pelajaran
+- Kelas
+- Fase
+- Tahun ajaran
+- Semester
+- CP
+- TP
+- Materi
+- Kegiatan pembelajaran
+- Metode
+- Media
+- Sumber belajar
+- Asesmen
+- Alokasi waktu
+
+Fitur:
+- Generate otomatis
+- AI membantu menyusun
+- Edit manual
+- Tambah baris
+- Hapus baris
+- Simpan
+- Pratinjau
+- Unduh DOCX
+
+==================================================
+M. MODUL AJAR / RPP
+==================================================
+
+Buat menu:
+
+MODUL AJAR / RPP
+
+Modul harus dibuat berdasarkan CP, TP, materi, kelas, dan waktu yang dipilih.
+
+Input:
+- Kelas
+- Semester
+- Mata pelajaran
+- TP
+- Materi
+- Pertemuan
+- Alokasi waktu
+- Model pembelajaran
+- Metode
+- Media
+- Sumber belajar
+- Karakteristik siswa
+- Kebutuhan belajar
+
+Struktur dokumen:
+1. Identitas modul
+2. Informasi umum
+3. Kompetensi awal
+4. Profil pelajar/karakter yang dituju
+5. Sarana prasarana
+6. Target peserta didik
+7. Model pembelajaran
+8. CP
+9. TP
+10. Pemahaman bermakna
+11. Pertanyaan pemantik
+12. Materi
+13. Kegiatan pendahuluan
+14. Kegiatan inti
+15. Kegiatan penutup
+16. Asesmen diagnostik
+17. Asesmen formatif
+18. Asesmen sumatif
+19. Rubrik
+20. Pengayaan
+21. Remedial
+22. Refleksi guru
+23. Refleksi siswa
+24. Lampiran
+
+Fitur:
+- Generate modul berdasarkan TP
+- Generate AI
+- Modul untuk satu atau beberapa pertemuan
+- Edit seluruh bagian
+- Simpan
+- Duplikasi
+- Gunakan modul lama sebagai template
+- Pratinjau
+- Unduh DOCX
+
+Modul harus masuk akal, tidak berulang secara generik, dan sesuai tujuan pembelajaran.
+
+==================================================
+N. LKPD
+==================================================
+
+Buat menu:
+
+LEMBAR KERJA PESERTA DIDIK (LKPD)
+
+LKPD terhubung dengan:
+- Kelas
+- Mata pelajaran
+- CP
+- TP
+- Materi
+- Modul ajar
+
+Struktur:
+- Identitas sekolah
+- Mata pelajaran
+- Nama siswa
+- Kelas
+- Tanggal
+- Materi
+- TP
+- Tujuan kegiatan
+- Petunjuk
+- Alat dan bahan
+- Ringkasan materi
+- Langkah kerja
+- Aktivitas
+- Pertanyaan
+- Tugas
+- Tabel pengamatan
+- Hasil
+- Kesimpulan
+- Refleksi
+- Rubrik
+
+Jenis LKPD:
+- Individu
+- Kelompok
+- Proyek
+- Praktik
+- Literasi
+- Pemecahan masalah
+
+Fitur:
+- Buat manual
+- Generate AI
+- Berdasarkan TP
+- Berdasarkan modul ajar
+- Edit
+- Simpan
+- Pratinjau
+- Unduh DOCX
+
+==================================================
+O. BANK SOAL
+==================================================
+
+Buat menu:
+
+BANK SOAL
+
+Kategori:
+- Kelas
+- Mata pelajaran
+- Materi
+- TP
+- Semester
+- Tingkat kesulitan
+- Jenis asesmen
+
+Jenis soal:
+- Pilihan ganda
+- Pilihan ganda kompleks
+- Benar/Salah
+- Menjodohkan
+- Isian
+- Uraian
+- Praktik
+
+Setiap soal:
+- Pertanyaan
+- Pilihan jawaban
+- Kunci
+- Pembahasan
+- TP
+- Materi
+- Indikator
+- Level kognitif
+- Tingkat kesulitan
+- Skor
+
+Fitur:
+- Input soal
+- Generate soal AI
+- Edit
+- Hapus
+- Simpan
+- Duplikasi
+- Cari
+- Filter
+- Pilih soal untuk asesmen
+- Buat paket soal
+- Acak soal
+- Acak opsi
+- Atur jumlah soal
+- Atur skor
+- Pratinjau
+- Unduh DOCX
+
+==================================================
+P. ASESMEN HARIAN DAN QUIZ
+==================================================
+
+Buat menu:
+
+ASESMEN HARIAN / QUIZ
+
+Input:
+- Nama asesmen
+- Kelas
+- Mata pelajaran
+- TP
+- Materi
+- Tanggal
+- Jenis
+- Jumlah soal
+- Bobot
+- Skor maksimal
+
+Fitur:
+- Soal manual
+- Generate AI
+- Pilih dari bank soal
+- Kisi-kisi
+- Kunci jawaban
+- Pembahasan
+- Input nilai
+- Rekap nilai
+- Analisis hasil
+- Daftar siswa belum dinilai
+- Daftar siswa belum mengikuti asesmen
+- Remedial
+- Pengayaan
+- Unduh DOCX
+
+==================================================
+Q. ASESMEN SUMATIF
+==================================================
+
+Buat menu:
+
+ASESMEN SUMATIF
+
+Jenis:
+- Sumatif lingkup materi
+- Sumatif akhir semester
+- Sumatif akhir tahun
+- Praktik
+- Proyek
+
+Fitur:
+- Pilih TP
+- Generate soal
+- Pilih soal dari bank
+- Buat soal manual
+- Kisi-kisi
+- Kunci jawaban
+- Rubrik
+- Pedoman penskoran
+- Input nilai
+- Analisis
+- Rekap
+- Unduh DOCX
+
+==================================================
+R. STS/PTS DAN SAS/PAS
+==================================================
+
+Buat menu:
+
+UJIAN SEMESTER
+
+Submenu:
+- STS/PTS
+- SAS/PAS
+- Ujian lainnya
+
+Dokumen yang dapat dibuat:
+- Naskah soal
+- Kisi-kisi
+- Kunci jawaban
+- Pedoman penskoran
+- Rubrik
+- Lembar jawaban
+- Rekap nilai
+- Analisis soal
+
+Kisi-kisi memuat:
+- Nomor
+- CP
+- TP
+- Materi
+- Indikator soal
+- Level kognitif
+- Bentuk soal
+- Nomor soal
+- Skor
+
+Guru dapat mengedit seluruh hasil AI.
+
+Pisahkan dokumen soal, kisi-kisi, dan kunci jawaban.
+
+==================================================
+S. PRESENSI SISWA
+==================================================
+
+Buat menu:
+
+PRESENSI SISWA
+
+Presensi mengambil data siswa secara otomatis dari kelas/rombel yang dipilih.
+
+Input:
+- Kelas
+- Tanggal
+- Mata pelajaran
+- Pertemuan
+- Jam pelajaran
+
+Status:
+- Hadir
+- Sakit
+- Izin
+- Alpa
+
+Fitur:
+- Presensi harian
+- Presensi per pertemuan
+- Edit
+- Simpan
+- Rekap harian
+- Rekap bulanan
+- Rekap semester
+- Rekap tahunan
+- Persentase kehadiran
+- Analisis ketidakhadiran
+- Cetak
+- Unduh DOCX
+- Ekspor Excel
+
+Presensi harus terintegrasi dengan database siswa.
+
+==================================================
+T. JURNAL MENGAJAR
+==================================================
+
+Buat menu:
+
+JURNAL MENGAJAR
+
+Data:
+- Tanggal
+- Hari
+- Kelas
+- Mata pelajaran
+- Pertemuan
+- Jam
+- TP
+- Materi
+- Kegiatan
+- Metode
+- Kehadiran
+- Catatan
+- Refleksi
+- Tindak lanjut
+
+Fitur:
+- Input manual
+- Ambil data dari modul ajar
+- Ambil data dari ATP
+- Ambil data dari jadwal
+- Simpan
+- Edit
+- Rekap bulanan
+- Rekap semester
+- Cetak
+- Unduh DOCX
+
+==================================================
+U. DAFTAR NILAI DAN PENGOLAHAN NILAI
+==================================================
+
+Buat menu:
+
+DAFTAR NILAI
+
+Daftar nilai terintegrasi dengan:
+- Data kelas
+- Data siswa
+- Quiz
+- Tugas
+- UH
+- Praktik
+- Projek
+- Asesmen harian
+- Asesmen sumatif
+- STS/PTS
+- SAS/PAS
+
+Guru dapat membuat komponen penilaian sendiri.
+
+Contoh komponen:
+- Tugas
+- Quiz
+- UH
+- Praktik
+- Projek
+- STS
+- SAS
+
+Guru dapat mengatur bobot.
+
+Contoh:
+- Tugas 10%
+- Quiz 10%
+- UH 20%
+- Praktik 20%
+- Projek 15%
+- STS 10%
+- SAS 15%
+
+Jumlah bobot ideal 100%.
+
+Jika bobot tidak 100%, berikan peringatan dan jangan menghitung nilai akhir secara diam-diam.
+
+Sediakan formula yang transparan dan dapat diubah guru.
+
+Fitur:
+- Input manual
+- Input massal
+- Impor Excel
+- Edit
+- Nilai otomatis dari asesmen
+- Rata-rata
+- Nilai akhir
+- Nilai per TP
+- Nilai per siswa
+- Nilai per kelas
+- Rekap
+- Ranking opsional
+- Ekspor Excel
+- Unduh DOCX
+
+Jangan pernah membuat nilai siswa secara fiktif.
+
+==================================================
+V. REKAP NILAI DAN ANALISIS KETERCAPAIAN TP
+==================================================
+
+Buat menu:
+
+REKAP NILAI DAN ANALISIS
+
+Tampilkan:
+- Nama siswa
+- Nilai tugas
+- Nilai quiz
+- Nilai UH
+- Nilai praktik
+- Nilai projek
+- Nilai sumatif
+- Nilai STS
+- Nilai SAS
+- Nilai akhir
+- Capaian TP
+- Status pencapaian
+- Tindak lanjut
+
+Analisis:
+- Rata-rata kelas
+- Nilai tertinggi
+- Nilai terendah
+- Sebaran nilai
+- Persentase pencapaian
+- Siswa yang membutuhkan remedial
+- Siswa yang memerlukan pengayaan
+- TP yang sudah dikuasai
+- TP yang belum dikuasai
+- Perbandingan antarasesmen
+
+Sediakan:
+- Filter
+- Grafik
+- Rekap tabel
+- Cetak
+- Ekspor Excel
+- Unduh DOCX
+
+Analisis harus berdasarkan nilai nyata.
+
+==================================================
+W. DESKRIPSI RAPOR SISWA OTOMATIS
+==================================================
+
+Buat menu:
+
+DESKRIPSI RAPOR
+
+AI membuat deskripsi capaian setiap siswa berdasarkan:
+- Nilai
+- TP
+- Materi
+- Asesmen
+- Kekuatan
+- Kelemahan
+- Capaian
+- Kebutuhan pengembangan
+
+Deskripsi harus:
+- Menggunakan Bahasa Indonesia yang baik
+- Positif dan profesional
+- Tidak menghakimi
+- Tidak hanya mengulang angka
+- Menjelaskan kompetensi yang sudah dikuasai
+- Menjelaskan kompetensi yang masih perlu ditingkatkan
+- Memberikan saran pengembangan
+- Tidak sama persis untuk semua siswa
+- Berdasarkan data nyata
+
+Contoh gaya deskripsi:
+
+"Ananda menunjukkan pemahaman yang baik terhadap konsep dasar materi dan mampu menerapkannya dalam kegiatan pembelajaran. Ananda telah mencapai sebagian besar tujuan pembelajaran dengan baik, khususnya pada kemampuan memahami dan menjelaskan konsep. Perlu meningkatkan ketelitian serta kemampuan menganalisis permasalahan secara lebih mendalam."
+
+Fitur:
+- Generate per siswa
+- Generate seluruh kelas
+- Edit
+- Simpan
+- Pratinjau
+- Unduh DOCX
+- Rekap rapor
+
+Jika data siswa belum mencukupi, tampilkan peringatan dan jangan membuat deskripsi yang tidak didukung data.
+
+==================================================
+X. TEMPLATE ADMINISTRASI SEKOLAH
+==================================================
+
+Buat menu:
+
+TEMPLATE DOKUMEN SEKOLAH
+
+Template bawaan:
+- Identitas
+- Daftar siswa
+- Presensi
+- Jurnal
+- Daftar nilai
+- Rekap nilai
+- ATP
+- PROTA
+- PROMES
+- Silabus
+- Modul ajar
+- LKPD
+- Asesmen
+- Kisi-kisi
+- Kunci jawaban
+- Rapor
+- Administrasi kelas
+
+Fitur:
+- Gunakan template bawaan
+- Upload template sekolah
+- Simpan template sendiri
+- Edit template
+- Pilih template per dokumen
+- Pratinjau
+- Mapping data
+- Generate dokumen
+- Unduh DOCX
+
+Jika sekolah memiliki format sendiri, guru dapat menggunakan format sekolah tersebut.
+
+Prioritaskan template sekolah yang diunggah.
+
+Pertahankan semaksimal mungkin:
+- Header
+- Logo
+- Margin
+- Font
+- Tabel
+- Penomoran
+- Posisi tanda tangan
+- Struktur dokumen
+
+Jika DOCX sekolah memiliki placeholder, sediakan pemetaan placeholder.
+
+Contoh:
+{{NAMA_SEKOLAH}}
+{{NPSN}}
+{{NAMA_GURU}}
+{{NIP_GURU}}
+{{NAMA_KEPALA_SEKOLAH}}
+{{NIP_KEPALA_SEKOLAH}}
+{{KELAS}}
+{{MATA_PELAJARAN}}
+{{TAHUN_AJARAN}}
+{{SEMESTER}}
+{{DAFTAR_SISWA}}
+{{DAFTAR_NILAI}}
+
+Sediakan panduan penggunaan template sendiri.
+
+==================================================
+Y. GENERATOR DOCX
+==================================================
+
+Buat sistem pembuat dokumen Microsoft Word yang benar.
+
+Semua dokumen administrasi dapat diunduh dalam format:
+
+.DOCX
+
+Dokumen harus:
+- Bisa dibuka di Microsoft Word
+- Bisa diedit
+- Menggunakan kertas A4 secara default
+- Memiliki margin yang sesuai
+- Font profesional dan konsisten
+- Judul rapi
+- Tabel terstruktur
+- Header/footer jika diperlukan
+- Nomor halaman jika diperlukan
+- Identitas sekolah
+- Identitas guru
+- Tanggal
+- Tempat tanda tangan
+- Format portrait/landscape sesuai kebutuhan
+
+Fitur:
+- Unduh satu dokumen
+- Unduh beberapa dokumen
+- Unduh per kelas
+- Unduh per semester
+- Unduh per tahun ajaran
+- Unduh seluruh administrasi
+
+Jangan hanya mengubah ekstensi file menjadi DOCX.
+
+Gunakan mekanisme atau library yang benar-benar menghasilkan file Word yang valid.
+
+Pastikan tabel tidak terpotong, kolom menyesuaikan, dan dokumen siap dicetak.
+
+==================================================
+Z. PAKET ADMINISTRASI SUPERVISI
+==================================================
+
+Buat menu:
+
+PAKET ADMINISTRASI SUPERVISI
+
+Guru dapat memilih dokumen yang ingin dimasukkan.
+
+BAGIAN 1 — ADMINISTRASI IDENTITAS
+- Identitas sekolah
+- Identitas guru
+- Identitas kepala sekolah
+
+BAGIAN 2 — ADMINISTRASI KELAS
+- Data kelas
+- Daftar siswa
+
+BAGIAN 3 — ADMINISTRASI PERENCANAAN
+- Kalender pendidikan
+- Minggu efektif
+- CP
+- TP
+- ATP
+- PROTA
+- PROMES
+- Silabus
+
+BAGIAN 4 — ADMINISTRASI PEMBELAJARAN
+- Modul ajar/RPP
+- LKPD
+- Media pembelajaran
+- Jurnal mengajar
+
+BAGIAN 5 — ADMINISTRASI PENILAIAN
+- Bank soal
+- Quiz
+- Asesmen harian
+- Asesmen sumatif
+- STS/PTS
+- SAS/PAS
+- Kisi-kisi
+- Kunci jawaban
+- Rubrik
+
+BAGIAN 6 — ADMINISTRASI KELAS
+- Presensi
+- Daftar nilai
+- Rekap nilai
+- Analisis capaian
+
+BAGIAN 7 — ADMINISTRASI PELAPORAN
+- Deskripsi rapor
+- Rekap nilai
+- Rekap capaian TP
+- Catatan tindak lanjut
+
+Fitur:
+- Checklist
+- Status dokumen
+- Pilih kelas
+- Pilih semester
+- Pilih tahun ajaran
+- Pilih dokumen
+- Pratinjau
+- Generate paket
+- Unduh seluruh paket
+
+Buat paket dalam file ZIP yang berisi DOCX terpisah dengan folder terstruktur.
+
+Contoh:
+
+ADMINISTRASI_GURU_[NAMA]_[TAHUN].zip
+
+01_IDENTITAS
+02_DATA_KELAS
+03_PERENCANAAN
+04_MODUL_AJAR
+05_LKPD
+06_ASESMEN
+07_PRESENSI
+08_JURNAL
+09_DAFTAR_NILAI
+10_REKAP_NILAI
+11_RAPOR
+
+Nama file harus rapi dan mudah dipahami.
+
+==================================================
+AA. AI ASISTEN GURU
+==================================================
+
+Buat menu:
+
+AI ASISTEN GURU
+
+AI membantu:
+- Menyusun CP berdasarkan sumber referensi
+- Membuat TP
+- Menyusun ATP
+- Menyusun PROTA
+- Menyusun PROMES
+- Menyusun silabus
+- Membuat modul ajar
+- Membuat RPP
+- Membuat LKPD
+- Membuat soal
+- Membuat quiz
+- Membuat kisi-kisi
+- Membuat kunci jawaban
+- Membuat rubrik
+- Membuat asesmen
+- Menganalisis hasil penilaian
+- Membuat deskripsi rapor
+- Membuat remedial
+- Membuat pengayaan
+- Membuat jurnal
+- Memberikan rekomendasi pembelajaran
+
+AI harus menggunakan konteks:
+- Sekolah
+- Guru
+- Mata pelajaran
+- Kelas
+- Fase
+- Semester
+- CP
+- TP
+- Materi
+- Minggu efektif
+- Alokasi waktu
+- Karakteristik siswa
+
+Alur AI:
+1. Pengguna memilih fitur.
+2. Pengguna menentukan data.
+3. AI menghasilkan draft.
+4. Draft ditampilkan.
+5. Guru dapat mengedit.
+6. Guru menyetujui.
+7. Dokumen disimpan.
+8. Dokumen dapat diunduh.
+
+Jangan menyimpan hasil AI tanpa persetujuan guru.
+
+Jangan mengarang referensi resmi kurikulum.
+
+Jika menggunakan referensi yang diberikan guru, prioritaskan referensi tersebut.
+
+==================================================
+AB. CHECKLIST ADMINISTRASI DAN MONITORING
+==================================================
+
+Buat menu:
+
+MONITORING ADMINISTRASI
+
+Checklist:
+- Identitas
+- Data kelas
+- Data siswa
+- Kalender
+- Minggu efektif
+- CP
+- TP
+- ATP
+- PROTA
+- PROMES
+- Silabus
+- Modul ajar
+- LKPD
+- Bank soal
+- Asesmen
+- Kisi-kisi
+- Kunci jawaban
+- Presensi
+- Jurnal
+- Daftar nilai
+- Rekap nilai
+- Deskripsi rapor
+- Paket supervisi
+
+Status:
+- Belum dikerjakan
+- Sedang dikerjakan
+- Selesai
+- Perlu revisi
+
+Tampilkan persentase kelengkapan administrasi.
+
+Guru dapat membuka langsung dokumen dari checklist.
+
+==================================================
+AC. BACKUP DAN RESTORE DATA
+==================================================
+
+Buat menu:
+
+BACKUP DAN RESTORE
+
+Fitur:
+- Backup seluruh data
+- Backup data per tahun ajaran
+- Backup data kelas
+- Ekspor data
+- Impor backup
+- Restore data
+- Backup dokumen
+- Backup template
+- Backup database
+
+Gunakan format backup yang praktis, misalnya JSON untuk data dan ZIP untuk dokumen.
+
+Backup harus:
+- Memiliki tanggal
+- Memiliki nama tahun ajaran
+- Dapat diunduh
+- Dapat dipulihkan
+
+Sebelum restore:
+- Tampilkan konfirmasi
+- Tampilkan informasi data yang akan dipulihkan
+- Hindari menimpa data tanpa persetujuan
+
+Jika memungkinkan, sediakan backup otomatis atau pengingat backup berkala.
+
+==================================================
+AD. PENCARIAN GLOBAL
+==================================================
+
+Buat pencarian global untuk:
+- Siswa
+- Kelas
+- CP
+- TP
+- Materi
+- Modul
+- LKPD
+- Soal
+- Asesmen
+- Presensi
+- Jurnal
+- Nilai
+- Dokumen
+
+Sediakan filter:
+- Tahun ajaran
+- Semester
+- Kelas
+- Mata pelajaran
+- Jenis dokumen
+- Tanggal
+
+==================================================
+AE. KEAMANAN DAN PRIVASI
+==================================================
+
+Data siswa dan guru harus dijaga.
+
+Ketentuan:
+- Validasi input
+- Konfirmasi penghapusan
+- Backup
+- Restore
+- Proteksi data
+- Jangan mengirim data pribadi siswa ke AI tanpa kebutuhan dan persetujuan
+- Jangan menampilkan data sensitif secara publik
+- Jangan mengarang data siswa
+- Jangan mengarang nilai
+- Jangan mengarang presensi
+- Jangan mengarang hasil asesmen
+- Jangan mengubah data tanpa tindakan pengguna
+- Pastikan data setiap kelas tidak tertukar
+- Pastikan data setiap tahun ajaran terpisah
+
+Jika aplikasi digunakan secara lokal, prioritaskan penyimpanan lokal.
+
+Jika menggunakan cloud, jelaskan konfigurasi dan keamanan data.
+
+==================================================
+AF. UI/UX DAN DESAIN
+==================================================
+
+Buat tampilan profesional, modern, bersih, dan tidak rumit.
+
+Inspirasi:
+- Dashboard pendidikan
+- Google Workspace
+- Notion
+- Microsoft Office
+- Aplikasi administrasi akademik
+
+Desain:
+- Sidebar
+- Topbar
+- Breadcrumb
+- Dashboard
+- Kartu statistik
+- Tabel
+- Form input
+- Modal
+- Search bar
+- Filter
+- Pagination
+- Notifikasi
+- Progress bar
+- Preview dokumen
+
+Palet:
+- Navy/Biru profesional
+- Putih
+- Abu-abu lembut
+- Teal/Hijau sebagai aksen
+
+Hindari:
+- Warna terlalu ramai
+- Animasi berlebihan
+- Dashboard padat
+- Form terlalu panjang tanpa pengelompokan
+- Tombol dekoratif yang tidak berfungsi
+
+Aplikasi harus responsif, tetapi optimalkan penggunaan laptop dan desktop.
+
+==================================================
+AG. STRUKTUR SIDEBAR
+==================================================
+
+Susun menu navigasi:
+
+1. DASHBOARD
+
+2. IDENTITAS
+   - Identitas Sekolah
+   - Identitas Guru
+   - Kepala Sekolah
+
+3. DATA AKADEMIK
+   - Tahun Ajaran
+   - Kalender Pendidikan
+   - Minggu Efektif
+   - Data Kelas
+   - Data Siswa
+
+4. PERENCANAAN
+   - CP
+   - TP
+   - ATP
+   - PROTA
+   - PROMES
+   - Silabus
+
+5. PERANGKAT PEMBELAJARAN
+   - Modul Ajar/RPP
+   - LKPD
+   - Media Pembelajaran
+
+6. ASESMEN
+   - Bank Soal
+   - Quiz
+   - Asesmen Harian
+   - Asesmen Sumatif
+   - STS/PTS
+   - SAS/PAS
+   - Kisi-kisi
+   - Kunci Jawaban
+   - Rubrik
+
+7. ADMINISTRASI KELAS
+   - Presensi
+   - Jurnal Mengajar
+   - Daftar Nilai
+   - Rekap Nilai
+   - Analisis TP
+
+8. RAPOR
+   - Capaian Pembelajaran
+   - Deskripsi Rapor
+   - Rekap Rapor
+
+9. DOKUMEN
+   - Template Sekolah
+   - Generator DOCX
+   - Paket Supervisi
+   - Arsip
+
+10. AI ASISTEN GURU
+
+11. MONITORING ADMINISTRASI
+
+12. BACKUP DAN RESTORE
+
+13. PENGATURAN
+
+==================================================
+AH. SISTEM DATABASE DAN RELASI
+==================================================
+
+Rancang database terstruktur.
+
+Entitas utama minimal:
+
+- SchoolProfile
+- TeacherProfile
+- PrincipalProfile
+- AcademicYear
+- Semester
+- SchoolCalendar
+- EffectiveWeeks
+- ClassGroup
+- Student
+- StudentEnrollment
+- Subject
+- LearningPhase
+- CP
+- TP
+- ATP
+- Prota
+- Promes
+- Syllabus
+- TeachingModule
+- Lesson
+- LKPD
+- QuestionBank
+- Assessment
+- AssessmentQuestion
+- QuestionBlueprint
+- AnswerKey
+- Rubric
+- Attendance
+- TeachingJournal
+- GradeComponent
+- StudentGrade
+- GradeRecap
+- TPAnalysis
+- ReportDescription
+- DocumentTemplate
+- GeneratedDocument
+- BackupRecord
+
+Gunakan ID unik dan relasi yang jelas.
+
+Semua data harus memiliki relasi tahun ajaran jika relevan.
+
+Jangan menyimpan daftar siswa duplikat pada masing-masing fitur.
+
+==================================================
+AI. INTEGRASI ANTARMENU
+==================================================
+
+Semua menu harus menggunakan database yang sama.
+
+Relasi utama:
+
+IDENTITAS
+↓
+TAHUN AJARAN
+↓
+KALENDER DAN MINGGU EFEKTIF
+↓
+DATA KELAS
+↓
+DATA SISWA
+↓
+CP
+↓
+TP
+↓
+ATP
+↓
+PROTA
+↓
+PROMES
+↓
+SILABUS
+↓
+MODUL AJAR
+↓
+LKPD
+↓
+BANK SOAL
+↓
+ASESMEN
+↓
+DAFTAR NILAI
+↓
+ANALISIS NILAI DAN TP
+↓
+DESKRIPSI RAPOR
+
+Data siswa dan kelas juga terhubung langsung ke:
+- Presensi
+- Jurnal
+- Asesmen
+- Nilai
+- Rekap
+- Rapor
+
+Contoh:
+
+Jika siswa ditambahkan ke kelas 8A, siswa otomatis muncul di presensi, asesmen, daftar nilai, rekap, dan rapor kelas 8A.
+
+Jika TP dibuat, TP dapat digunakan di ATP, PROTA, PROMES, silabus, modul ajar, LKPD, asesmen, kisi-kisi, dan analisis nilai.
+
+Jika kalender diubah, minggu efektif dan perencanaan terkait dapat disesuaikan.
+
+Jika identitas sekolah diubah, dokumen berikutnya menggunakan identitas terbaru.
+
+Semua integrasi harus benar-benar berfungsi.
+
+==================================================
+AJ. FITUR IMPOR DAN EKSPOR
+==================================================
+
+Sediakan kemampuan:
+
+IMPOR:
+- Data siswa Excel
+- Data kelas
+- Nilai Excel
+- CP dari dokumen jika memungkinkan
+- Template administrasi sekolah
+- Template Word
+
+EKSPOR:
+- Data siswa Excel
+- Presensi Excel
+- Daftar nilai Excel
+- Rekap Excel
+- Semua administrasi DOCX
+- Backup JSON
+- Paket ZIP
+
+Berikan template Excel yang mudah digunakan untuk impor data siswa dan nilai.
+
+==================================================
+AK. KETENTUAN FUNGSI APLIKASI
+==================================================
+
+Setiap menu harus berfungsi.
+
+Setiap tombol harus memiliki aksi nyata.
+
+Setiap form:
+- Validasi
+- Simpan
+- Edit
+- Hapus dengan konfirmasi
+- Batal
+- Reset jika dibutuhkan
+
+Setiap tabel:
+- Pencarian
+- Filter
+- Sortir
+- Pagination jika data banyak
+
+Setiap dokumen:
+- Pratinjau
+- Edit
+- Simpan
+- Unduh
+
+Jangan membuat:
+- Tombol palsu
+- Menu kosong
+- Data dummy permanen
+- Hasil AI yang langsung tersimpan tanpa persetujuan
+- Fitur yang hanya tampak aktif tetapi tidak bekerja
+
+Jika suatu fitur belum diimplementasikan, tampilkan status dengan jelas. Jangan mengklaim fitur sudah berfungsi jika belum.
+
+==================================================
+AL. PRIORITAS PENGEMBANGAN
+==================================================
+
+Bangun aplikasi secara bertahap dengan fondasi database yang sudah mendukung seluruh fitur.
+
+TAHAP 1 — FONDASI
+- Dashboard
+- Identitas
+- Tahun ajaran
+- Data kelas
+- Data siswa
+- Database
+- Backup awal
+
+TAHAP 2 — KALENDER DAN PERENCANAAN
+- Kalender
+- Minggu efektif
+- CP
+- TP
+- ATP
+- PROTA
+- PROMES
+- Silabus
+
+TAHAP 3 — PERANGKAT AJAR
+- Modul ajar/RPP
+- LKPD
+- Generator AI
+
+TAHAP 4 — ASESMEN
+- Bank soal
+- Quiz
+- Asesmen harian
+- Asesmen sumatif
+- STS/PTS
+- SAS/PAS
+- Kisi-kisi
+- Kunci jawaban
+- Rubrik
+
+TAHAP 5 — ADMINISTRASI KELAS
+- Presensi
+- Jurnal
+- Daftar nilai
+- Rekap nilai
+- Analisis TP
+
+TAHAP 6 — PELAPORAN
+- Deskripsi rapor
+- Rekap capaian
+- Analisis hasil
+- Tindak lanjut
+
+TAHAP 7 — DOKUMEN
+- DOCX
+- Template sekolah
+- Paket supervisi
+- ZIP
+
+TAHAP 8 — PENYEMPURNAAN
+- Backup
+- Restore
+- Arsip tahun ajaran
+- Impor
+- Ekspor
+- Validasi
+- Pengujian
+- Perbaikan UI/UX
+
+==================================================
+AM. PENGUJIAN APLIKASI
+==================================================
+
+Lakukan pengujian setiap tahap.
+
+Uji:
+- Input data
+- Simpan
+- Edit
+- Hapus
+- Refresh halaman
+- Data tetap tersimpan
+- Relasi kelas dan siswa
+- Relasi CP dan TP
+- Relasi TP dengan ATP
+- Relasi ATP dengan PROTA/PROMES
+- Modul ajar
+- LKPD
+- Soal
+- Asesmen
+- Presensi
+- Jurnal
+- Nilai
+- Rekap
+- Deskripsi rapor
+- Unduh DOCX
+- Impor Excel
+- Ekspor Excel
+- ZIP
+- Backup
+- Restore
+
+Pastikan tidak ada data yang salah kelas.
+
+Pastikan dokumen yang dihasilkan benar-benar dapat dibuka.
+
+==================================================
+AN. HASIL AKHIR YANG DIHARAPKAN
+==================================================
+
+Saya menginginkan aplikasi GURU ADMIN PRO yang benar-benar dapat digunakan guru untuk administrasi satu tahun pembelajaran.
+
+Aplikasi harus:
+- Berfungsi nyata
+- Mudah dipahami
+- Mudah digunakan
+- Tidak membutuhkan penginputan data berulang
+- Terintegrasi
+- Data tersimpan
+- Dapat digunakan lintas tahun ajaran
+- Mendukung AI
+- Mendukung template sekolah
+- Mendukung impor Excel
+- Mendukung ekspor Excel
+- Mendukung DOCX
+- Mendukung ZIP
+- Mendukung backup dan restore
+- Membantu menyusun perangkat pembelajaran
+- Membantu administrasi kelas
+- Membantu penilaian
+- Membantu membuat deskripsi rapor
+- Membantu menyiapkan administrasi supervisi
+
+Seluruh dokumen dapat diedit sebelum diunduh.
+
+Seluruh dokumen menggunakan identitas sekolah, guru, kepala sekolah, kelas, semester, dan tahun ajaran yang sesuai.
+
+Dokumen harus profesional, rapi, dan siap digunakan atau disesuaikan guru.
+
+==================================================
+AO. INSTRUKSI FINAL KEPADA AI CODING
+==================================================
+
+Jangan hanya menjelaskan cara membuat aplikasi.
+
+Jangan berhenti pada wireframe.
+
+Jangan hanya membuat dashboard.
+
+Jangan hanya membuat mockup.
+
+Jangan membuat tombol yang tidak berfungsi.
+
+Mulailah dengan merancang arsitektur, database, relasi, navigasi, dan UI/UX.
+
+Kemudian langsung implementasikan aplikasi.
+
+Prioritaskan fondasi yang kuat agar semua fitur dapat dikembangkan tanpa membongkar aplikasi dari awal.
+
+Jika seluruh aplikasi tidak dapat dibuat dalam satu proses:
+- Buat fondasi lengkap terlebih dahulu.
+- Implementasikan fitur secara bertahap.
+- Jangan menghilangkan fitur yang sudah direncanakan.
+- Jangan merusak fitur sebelumnya.
+- Pertahankan database dan struktur.
+- Lakukan pengujian setiap tahap.
+- Berikan catatan fitur yang sudah selesai dan yang belum.
+
+Saya ingin aplikasi ini menjadi asisten administrasi guru sepanjang satu tahun ajaran.
+
+Target penggunaan:
+
+Guru cukup melakukan:
+1. Mengisi identitas sekolah dan guru.
+2. Menentukan tahun ajaran.
+3. Memasukkan kalender pendidikan.
+4. Membuat kelas dan memasukkan siswa.
+5. Memasukkan CP.
+6. Membuat TP.
+7. Menyusun ATP.
+8. Menyusun PROTA dan PROMES berdasarkan minggu efektif.
+9. Membuat silabus.
+10. Membuat modul ajar/RPP.
+11. Membuat LKPD.
+12. Membuat bank soal dan asesmen.
+13. Mengelola presensi.
+14. Mengisi jurnal mengajar.
+15. Menginput dan merekap nilai.
+16. Membuat analisis capaian pembelajaran.
+17. Membuat deskripsi rapor.
+18. Mengunduh administrasi satu per satu atau seluruh paket administrasi dalam ZIP.
+
+Semua dokumen harus dapat diunduh dalam format Microsoft Word DOCX, dapat diedit, dapat dicetak, dan dapat digunakan untuk kebutuhan administrasi sekolah maupun supervisi.
+
+Bangun aplikasi dengan kualitas profesional, alur kerja yang logis, database yang kuat, tampilan modern, dan pengalaman pengguna yang sederhana.
+
+**Mulai implementasi sekarang. Jangan berhenti pada perencanaan atau penjelasan.**

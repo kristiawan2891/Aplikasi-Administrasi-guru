@@ -1,0 +1,6 @@
+{
+  "name": "GURU ADMIN PRO",
+  "description": "Semua Administrasi Guru dalam Satu Sistem, Satu Tahun Pembelajaran. Sistem administrasi pembelajaran terintegrasi untuk guru Indonesia (Identitas, Kalender & Minggu Efektif, Data Kelas & Siswa, CP, TP, ATP, PROTA, PROMES, Silabus, Modul Ajar, LKPD, Bank Soal & Asesmen, Presensi, Jurnal Mengajar, Daftar Nilai, Deskripsi Rapor, Generator DOCX & Paket Supervisi ZIP, Backup/Restore, dan AI Asisten Guru).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
