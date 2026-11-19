@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Upload, RotateCcw, Eye, Save } from 'lucide-react';
-import { db } from '../db/database';
+import {
+  DEFAULT_SCHOOL_LOGO_URL,
+  db,
+  getCurrentAcademicYearDefaults,
+} from '../db/database';
 import { useApp } from '../context/AppContext';
 import {
   DocxButton,
@@ -43,7 +47,15 @@ export const IdentityPage: React.FC = () => {
   const [classesText, setClassesText] = useState('');
 
   useEffect(() => {
-    if (school) setSchForm({ ...school });
+    if (school) {
+      setSchForm({
+        ...school,
+        logoBase64:
+          school.logoBase64 === undefined
+            ? DEFAULT_SCHOOL_LOGO_URL
+            : school.logoBase64,
+      });
+    }
     if (teacher) {
       setTchForm({ ...teacher });
       setSubjectsText(teacher.subjects.join(', '));
@@ -72,7 +84,15 @@ export const IdentityPage: React.FC = () => {
 
   const handleSaveAll = async () => {
     const now = new Date().toISOString();
-    const updatedSchool: SchoolProfile = { ...schForm, updatedAt: now };
+    const cleanedYearName =
+      schForm.academicYearText.trim() ||
+      activeYear?.name ||
+      getCurrentAcademicYearDefaults().name;
+    const updatedSchool: SchoolProfile = {
+      ...schForm,
+      academicYearText: cleanedYearName,
+      updatedAt: now,
+    };
     const updatedTeacher: TeacherProfile = {
       ...tchForm,
       subjects: subjectsText
@@ -89,15 +109,21 @@ export const IdentityPage: React.FC = () => {
 
     await db.transaction(
       'rw',
-      [db.schoolProfile, db.teacherProfile, db.principalProfile],
+      [db.schoolProfile, db.teacherProfile, db.principalProfile, db.academicYears],
       async () => {
         await db.schoolProfile.put(updatedSchool);
         await db.teacherProfile.put(updatedTeacher);
         await db.principalProfile.put(updatedPrincipal);
+        if (activeYear) {
+          await db.academicYears.update(activeYear.id, {
+            name: cleanedYearName,
+            activeSemester: updatedSchool.activeSemester,
+          });
+        }
       }
     );
     await refreshData();
-    notify('Identitas sekolah, guru, dan kepala sekolah berhasil disimpan.');
+    notify('Identitas sekolah, guru, kepala sekolah, dan tahun ajaran aktif berhasil disimpan.');
   };
 
   const handleReset = async () => {
@@ -124,7 +150,7 @@ export const IdentityPage: React.FC = () => {
       academicYearText: activeYear?.name || '2026/2027',
       activeSemester: activeYear?.activeSemester || 1,
       curriculum: 'Kurikulum Merdeka',
-      logoBase64: undefined,
+      logoBase64: DEFAULT_SCHOOL_LOGO_URL,
       phone: '',
       email: '',
       additionalInfo: '',
@@ -225,10 +251,10 @@ export const IdentityPage: React.FC = () => {
               <p className="text-xs text-slate-500 mt-0.5">
                 Format PNG atau JPG (maks. 2 MB). Otomatis tampil pada kop dokumen Word DOCX.
               </p>
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <label className="px-3.5 py-2 text-xs font-medium text-blue-900 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-lg cursor-pointer inline-flex items-center gap-2">
                   <Upload className="w-3.5 h-3.5" />
-                  <span>Unggah Logo</span>
+                  <span>Unggah Logo Lain</span>
                   <input
                     type="file"
                     accept="image/png,image/jpeg"
@@ -236,10 +262,21 @@ export const IdentityPage: React.FC = () => {
                     onChange={handleLogoUpload}
                   />
                 </label>
+                {schForm.logoBase64 !== DEFAULT_SCHOOL_LOGO_URL && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSchForm({ ...schForm, logoBase64: DEFAULT_SCHOOL_LOGO_URL })
+                    }
+                    className="px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg"
+                  >
+                    Gunakan Logo Sekolah Bawaan
+                  </button>
+                )}
                 {schForm.logoBase64 && (
                   <button
                     type="button"
-                    onClick={() => setSchForm({ ...schForm, logoBase64: undefined })}
+                    onClick={() => setSchForm({ ...schForm, logoBase64: '' })}
                     className="px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50 rounded-lg"
                   >
                     Hapus Logo
@@ -299,13 +336,40 @@ export const IdentityPage: React.FC = () => {
                 <option value="KTSP / Sekolah">KTSP / Kurikulum Sekolah</option>
               </select>
             </FormField>
-            <FormField label="Tahun Ajaran Aktif" hint="Sinkron dengan menu Tahun Ajaran">
-              <input
-                type="text"
-                className={`${inputClass} font-mono bg-slate-50`}
-                value={activeYear?.name || schForm.academicYearText}
-                readOnly
-              />
+            <FormField
+              label="Tahun Ajaran Aktif"
+              hint="Terisi otomatis dari tahun pelajaran berjalan, atau ubah manual lalu klik Simpan."
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  className={`${inputClass} font-mono flex-1`}
+                  value={schForm.academicYearText}
+                  onChange={(e) =>
+                    setSchForm({ ...schForm, academicYearText: e.target.value })
+                  }
+                  placeholder="2026/2027"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const def = getCurrentAcademicYearDefaults();
+                    setSchForm({
+                      ...schForm,
+                      academicYearText: def.name,
+                      activeSemester: def.activeSemester,
+                    });
+                    notify(
+                      `Disesuaikan ke tahun pelajaran berjalan (${def.name} Sem ${def.activeSemester}). Klik Simpan untuk menerapkan.`,
+                      'info'
+                    );
+                  }}
+                  className="px-2.5 py-2 text-xs font-medium text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg whitespace-nowrap shrink-0"
+                  title="Deteksi otomatis tahun pelajaran berjalan dari tanggal saat ini"
+                >
+                  Tahun Berjalan
+                </button>
+              </div>
             </FormField>
             <FormField label="Semester Aktif">
               <select

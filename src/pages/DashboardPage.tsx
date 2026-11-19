@@ -7,7 +7,7 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from 'lucide-react';
-import { db } from '../db/database';
+import { DEFAULT_SCHOOL_LOGO_URL, db } from '../db/database';
 import { useApp } from '../context/AppContext';
 import {
   computeMonitoringSummary,
@@ -91,19 +91,32 @@ export const DashboardPage: React.FC<{ onOpenSearch: () => void }> = ({
       {/* Active Context Banner */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 mb-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <div className="text-xs font-medium text-slate-500">
-              {school?.name || 'Nama Sekolah Belum Diisi'} · {school?.curriculum || 'Kurikulum Merdeka'}
-            </div>
-            <h2 className="mt-1 text-lg font-bold text-slate-900">
-              {teacher?.fullName || 'Lengkapi Identitas Guru'}
-            </h2>
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
-              <span>Tahun Ajaran {activeYear?.name || '-'}</span>
-              <span aria-hidden="true">·</span>
-              <span>Semester {activeYear?.activeSemester || 1}</span>
-              <span aria-hidden="true">·</span>
-              <span>Mata Pelajaran: {activeSubjectText}</span>
+          <div className="flex items-center gap-4 min-w-0">
+            {(school?.logoBase64 === '' ? '' : school?.logoBase64 || DEFAULT_SCHOOL_LOGO_URL) && (
+              <img
+                src={
+                  school?.logoBase64 === ''
+                    ? ''
+                    : school?.logoBase64 || DEFAULT_SCHOOL_LOGO_URL
+                }
+                alt="Logo Sekolah"
+                className="w-14 h-14 object-contain shrink-0"
+              />
+            )}
+            <div className="min-w-0">
+              <div className="text-xs font-medium text-slate-500">
+                {school?.name || 'Nama Sekolah Belum Diisi'} · {school?.curriculum || 'Kurikulum Merdeka'}
+              </div>
+              <h2 className="mt-1 text-lg font-bold text-slate-900 truncate">
+                {teacher?.fullName || 'Lengkapi Identitas Guru'}
+              </h2>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+                <span>Tahun Ajaran {activeYear?.name || '-'}</span>
+                <span aria-hidden="true">·</span>
+                <span>Semester {activeYear?.activeSemester || 1}</span>
+                <span aria-hidden="true">·</span>
+                <span>Mata Pelajaran: {activeSubjectText}</span>
+              </div>
             </div>
           </div>
 

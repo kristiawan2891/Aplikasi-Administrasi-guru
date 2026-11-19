@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { AppProvider, useApp, type NavSectionId } from './context/AppContext';
+import { DEFAULT_SCHOOL_LOGO_URL } from './db/database';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { DashboardPage } from './pages/DashboardPage';
 import { IdentityPage } from './pages/IdentityPage';
@@ -160,6 +161,9 @@ const AppShell: React.FC = () => {
 
   const activeNavConfig = NAV_ITEMS.find((n) => n.id === activeNav);
 
+  const schoolLogo =
+    school?.logoBase64 === '' ? '' : school?.logoBase64 || DEFAULT_SCHOOL_LOGO_URL;
+
   const renderPage = () => {
     switch (activeNav) {
       case 'dashboard':
@@ -207,17 +211,26 @@ const AppShell: React.FC = () => {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="h-16 px-5 border-b border-slate-200 flex items-center justify-between shrink-0">
+        <div className="h-16 px-4 border-b border-slate-200 flex items-center justify-between gap-2 shrink-0">
           <button
             type="button"
             onClick={() => navigate('dashboard')}
-            className="text-left"
+            className="flex items-center gap-2.5 text-left min-w-0"
           >
-            <div className="text-base font-bold tracking-tight text-blue-950 whitespace-nowrap">
-              GURU ADMIN PRO
-            </div>
-            <div className="text-[11px] text-slate-500 whitespace-nowrap">
-              Administrasi Satu Tahun Ajaran
+            {schoolLogo && (
+              <img
+                src={schoolLogo}
+                alt="Logo Sekolah"
+                className="w-9 h-9 object-contain shrink-0"
+              />
+            )}
+            <div className="min-w-0">
+              <div className="text-sm font-bold tracking-tight text-blue-950 whitespace-nowrap">
+                GURU ADMIN PRO
+              </div>
+              <div className="text-[11px] text-slate-500 whitespace-nowrap truncate">
+                Administrasi Satu Tahun Ajaran
+              </div>
             </div>
           </button>
           <button
@@ -280,18 +293,27 @@ const AppShell: React.FC = () => {
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-200 text-xs text-slate-600 bg-slate-50">
-          <div className="font-semibold text-slate-800 truncate">
-            {school?.name || 'Sekolah Belum Diatur'}
-          </div>
-          <div className="font-mono text-[11px] text-slate-500 mt-0.5">
-            TA {activeYear?.name || '-'} · Sem {activeYear?.activeSemester || 1}
-          </div>
-          {lastSyncedAt && (
-            <div className="text-[11px] text-teal-700 mt-1">
-              Tersinkronisasi otomatis
-            </div>
+        <div className="p-4 border-t border-slate-200 text-xs text-slate-600 bg-slate-50 flex items-center gap-3">
+          {schoolLogo && (
+            <img
+              src={schoolLogo}
+              alt="Logo Sekolah"
+              className="w-8 h-8 object-contain shrink-0"
+            />
           )}
+          <div className="min-w-0">
+            <div className="font-semibold text-slate-800 truncate">
+              {school?.name || 'Sekolah Belum Diatur'}
+            </div>
+            <div className="font-mono text-[11px] text-slate-500 mt-0.5">
+              TA {activeYear?.name || '-'} · Sem {activeYear?.activeSemester || 1}
+            </div>
+            {lastSyncedAt && (
+              <div className="text-[11px] text-teal-700 mt-0.5">
+                Tersinkronisasi otomatis
+              </div>
+            )}
+          </div>
         </div>
       </aside>
 

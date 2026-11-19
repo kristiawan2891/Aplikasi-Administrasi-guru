@@ -16,7 +16,9 @@ import {
   copyAcademicYearStructure,
   createId,
   db,
+  getCurrentAcademicYearDefaults,
   switchActiveAcademicYear,
+  updateAcademicYearDetails,
 } from '../db/database';
 import { useApp } from '../context/AppContext';
 import {
@@ -85,10 +87,15 @@ export const AcademicDataPage: React.FC = () => {
   const [classes, setClasses] = useState<ClassGroup[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
 
-  // Academic Year New/Copy modal state
-  const [newYearName, setNewYearName] = useState('2027/2028');
-  const [newYearStart, setNewYearStart] = useState('2027-07-12');
-  const [newYearEnd, setNewYearEnd] = useState('2028-06-16');
+  // Academic Year New/Copy & Edit state
+  const currentDef = getCurrentAcademicYearDefaults();
+  const [newYearName, setNewYearName] = useState(currentDef.name);
+  const [newYearStart, setNewYearStart] = useState(currentDef.startDate);
+  const [newYearEnd, setNewYearEnd] = useState(currentDef.endDate);
+  const [editingYearId, setEditingYearId] = useState<string | null>(null);
+  const [editYearName, setEditYearName] = useState('');
+  const [editYearStart, setEditYearStart] = useState('');
+  const [editYearEnd, setEditYearEnd] = useState('');
   const [copyClassesFlag, setCopyClassesFlag] = useState(true);
   const [promoteGradeLevelFlag, setPromoteGradeLevelFlag] = useState(true);
   const [copyStudentsFlag, setCopyStudentsFlag] = useState(true);
@@ -159,6 +166,18 @@ export const AcademicDataPage: React.FC = () => {
     };
   }, [activeYear, dataVersion]);
 
+  useEffect(() => {
+    if (!activeYear) return;
+    const m = activeYear.name.match(/^(\d{4})\/(\d{4})$/);
+    if (m) {
+      const nextStart = Number(m[2]);
+      const nextEnd = nextStart + 1;
+      setNewYearName(`${nextStart}/${nextEnd}`);
+      setNewYearStart(`${nextStart}-07-13`);
+      setNewYearEnd(`${nextEnd}-06-18`);
+    }
+  }, [activeYear]);
+
   const effectiveSummary = useMemo(() => {
     if (!calConfig) return null;
     return calculateEffectiveWeeks(calConfig, calEvents);
@@ -205,6 +224,36 @@ export const AcademicDataPage: React.FC = () => {
     await db.schoolProfile.update('default', { activeSemester: sem });
     await refreshData();
     notify(`Semester aktif diubah ke Semester ${sem}.`);
+  };
+
+  const handleSaveYearEdit = async (yearId: string) => {
+    if (!editYearName.trim()) {
+      notify('Nama tahun ajaran wajib diisi.', 'error');
+      return;
+    }
+    await updateAcademicYearDetails(yearId, {
+      name: editYearName.trim(),
+      startDate: editYearStart,
+      endDate: editYearEnd,
+    });
+    setEditingYearId(null);
+    await refreshData();
+    notify('Data tahun ajaran berhasil diperbarui.');
+  };
+
+  const handleSyncToCurrentRunningYear = async () => {
+    if (!activeYear) return;
+    const def = getCurrentAcademicYearDefaults();
+    await updateAcademicYearDetails(activeYear.id, {
+      name: def.name,
+      startDate: def.startDate,
+      endDate: def.endDate,
+      activeSemester: def.activeSemester,
+    });
+    await refreshData();
+    notify(
+      `Tahun ajaran aktif disesuaikan ke tahun pelajaran berjalan: ${def.name} (Semester ${def.activeSemester}).`
+    );
   };
 
   // ======================== HANDLERS: KALENDER ========================
@@ -449,13 +498,25 @@ export const AcademicDataPage: React.FC = () => {
       {tab === 'tahun' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="text-base font-semibold text-slate-900">
-                Daftar Tahun Ajaran
-              </h3>
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">
+                  Daftar Tahun Ajaran
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Otomatis terisi dari tahun pelajaran berjalan (Juli–Juni), atau ubah manual kapan saja.
+                </p>
+              </div>
               {activeYear && (
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-slate-500">Semester Aktif:</span>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={handleSyncToCurrentRunningYear}
+                    className="px-2.5 py-1 rounded-md font-medium bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-100"
+                  >
+                    Sesuaikan Tahun Berjalan ({currentDef.name})
+                  </button>
+                  <span className="text-slate-500 ml-1">Semester:</span>
                   <button
                     type="button"
                     onClick={() => handleChangeSemester(1)}
@@ -484,43 +545,94 @@ export const AcademicDataPage: React.FC = () => {
 
             <div className="mt-4 divide-y divide-slate-100">
               {academicYears.map((yr) => (
-                <div
-                  key={yr.id}
-                  className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                >
-                  <div>
-                    <div className="font-semibold text-slate-900 font-mono">
-                      {yr.name}{' '}
-                      {yr.isActive && (
-                        <span className="ml-2 text-xs font-sans font-medium text-teal-700">
-                          · Aktif
-                        </span>
-                      )}
-                      {yr.isArchived && (
-                        <span className="ml-2 text-xs font-sans font-medium text-slate-500">
-                          · Diarsipkan
-                        </span>
-                      )}
+                <div key={yr.id} className="py-3.5">
+                  {editingYearId === yr.id ? (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <FormField label="Nama Tahun Ajaran">
+                          <input
+                            type="text"
+                            className={`${inputClass} font-mono text-xs`}
+                            value={editYearName}
+                            onChange={(e) => setEditYearName(e.target.value)}
+                          />
+                        </FormField>
+                        <FormField label="Tanggal Mulai">
+                          <input
+                            type="date"
+                            className={`${inputClass} text-xs`}
+                            value={editYearStart}
+                            onChange={(e) => setEditYearStart(e.target.value)}
+                          />
+                        </FormField>
+                        <FormField label="Tanggal Akhir">
+                          <input
+                            type="date"
+                            className={`${inputClass} text-xs`}
+                            value={editYearEnd}
+                            onChange={(e) => setEditYearEnd(e.target.value)}
+                          />
+                        </FormField>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <PrimaryButton onClick={() => handleSaveYearEdit(yr.id)}>
+                          Simpan Perubahan
+                        </PrimaryButton>
+                        <SecondaryButton onClick={() => setEditingYearId(null)}>
+                          Batal
+                        </SecondaryButton>
+                      </div>
                     </div>
-                    <div className="text-xs text-slate-500 font-mono mt-0.5">
-                      {yr.startDate} s.d. {yr.endDate} · Semester {yr.activeSemester}
+                  ) : (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-slate-900 font-mono">
+                          {yr.name}{' '}
+                          {yr.isActive && (
+                            <span className="ml-2 text-xs font-sans font-medium text-teal-700">
+                              · Aktif
+                            </span>
+                          )}
+                          {yr.isArchived && (
+                            <span className="ml-2 text-xs font-sans font-medium text-slate-500">
+                              · Diarsipkan
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500 font-mono mt-0.5">
+                          {yr.startDate} s.d. {yr.endDate} · Semester {yr.activeSemester}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingYearId(yr.id);
+                            setEditYearName(yr.name);
+                            setEditYearStart(yr.startDate);
+                            setEditYearEnd(yr.endDate);
+                          }}
+                          className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg inline-flex items-center gap-1.5"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </button>
+                        {!yr.isActive && (
+                          <SecondaryButton onClick={() => handleSwitchYear(yr.id)}>
+                            Aktifkan Tahun Ini
+                          </SecondaryButton>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleArchive(yr.id, yr.isArchived)}
+                          className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg inline-flex items-center gap-1.5"
+                        >
+                          <Archive className="w-3.5 h-3.5" />
+                          <span>{yr.isArchived ? 'Buka Arsip' : 'Arsipkan'}</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!yr.isActive && (
-                      <SecondaryButton onClick={() => handleSwitchYear(yr.id)}>
-                        Aktifkan Tahun Ini
-                      </SecondaryButton>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleToggleArchive(yr.id, yr.isArchived)}
-                      className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg inline-flex items-center gap-1.5"
-                    >
-                      <Archive className="w-3.5 h-3.5" />
-                      <span>{yr.isArchived ? 'Buka Arsip' : 'Arsipkan'}</span>
-                    </button>
-                  </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -59,10 +59,40 @@ async function callGemini<T = string>(params: {
   return JSON.parse(cleaned) as T;
 }
 
-const BASE_SYSTEM_INSTRUCTION = `Anda adalah Ahli Pendidikan Indonesia, Pakar Kurikulum Merdeka, dan Konsultan Administrasi Guru Profesional.
+export const KEMENDIKDASMEN_CP_REGULATIONS = [
+  {
+    id: 'bskap_046_2025',
+    label: 'Keputusan Kepala BSKAP Kemendikdasmen No. 046/H/KR/2025',
+    shortLabel: 'Kepka BSKAP Kemendikdasmen No. 046/H/KR/2025 (Terbaru)',
+    summary:
+      'Regulasi terbaru Capaian Pembelajaran PAUD, Dikdas, dan Dikmen (pengganti No. 032/H/KR/2024).',
+  },
+  {
+    id: 'bskap_032_2024',
+    label: 'Keputusan Kepala BSKAP No. 032/H/KR/2024',
+    shortLabel: 'Kepka BSKAP No. 032/H/KR/2024',
+    summary:
+      'Capaian Pembelajaran pada Pendidikan Anak Usia Dini, Jenjang Pendidikan Dasar, dan Jenjang Pendidikan Menengah.',
+  },
+  {
+    id: 'custom',
+    label: 'Peraturan Kemendikdasmen / BSKAP Lainnya',
+    shortLabel: 'Tulis Manual / Regulasi Kemendikdasmen Lainnya',
+    summary:
+      'Masukkan nomor atau judul peraturan Kemendikdasmen / BSKAP lain yang digunakan satuan pendidikan.',
+  },
+] as const;
+
+export interface CpAiDraftItem {
+  element: string;
+  description: string;
+  referenceSource: string;
+}
+
+const BASE_SYSTEM_INSTRUCTION = `Anda adalah Ahli Pendidikan Indonesia, Pakar Kurikulum Merdeka Kemendikdasmen, dan Konsultan Administrasi Guru Profesional.
 Aturan wajib:
 1. Selalu gunakan Bahasa Indonesia yang baku, profesional, dan sesuai konteks sekolah Indonesia.
-2. Jangan mengarang nomor keputusan resmi pemerintah atau mengklaim hasil Anda sebagai dokumen resmi BSKAP tanpa verifikasi guru.
+2. Jangan mengarang nomor keputusan resmi pemerintah yang tidak diberikan, dan jangan mengklaim hasil Anda sebagai salinan verbatim dokumen resmi BSKAP tanpa verifikasi guru terhadap lampiran PDF resmi.
 3. Jangan pernah mengarang data siswa atau nilai siswa.
 4. Keluaran harus langsung terstruktur, praktis, tidak bertele-tele, dan siap diedit oleh guru.`;
 
@@ -71,27 +101,79 @@ export async function generateCpDraft(params: {
   subject: string;
   phase: string;
   gradeLevel: string;
-  element: string;
-  referenceNotes: string;
-}): Promise<{ description: string; note: string }> {
-  const prompt = `Susun DRAFT Capaian Pembelajaran (CP) yang harus diverifikasi guru berdasarkan referensi berikut:
-Sekolah: ${params.ctx.school.name || '-'} (${params.ctx.school.level}, ${params.ctx.school.curriculum})
+  element?: string;
+  regulation: string;
+  scope: 'single' | 'all_elements';
+  referenceNotes?: string;
+}): Promise<{ items: CpAiDraftItem[]; note: string }> {
+  const regLabel =
+    params.regulation.trim() ||
+    'Keputusan Kepala BSKAP Kemendikdasmen No. 046/H/KR/2025';
+  const scopeInstruction =
+    params.scope === 'all_elements'
+      ? `Susun seluruh Elemen CP utama (umumnya 2 hingga 5 elemen sesuai struktur mata pelajaran "${params.subject}" pada Fase ${params.phase}) lengkap dengan narasi Capaian Pembelajaran per elemen.`
+      : `Susun 1 item CP khusus untuk Elemen "${params.element || 'Elemen Utama'}".`;
+
+  const prompt = `Susun DRAFT Capaian Pembelajaran (CP) Kurikulum Merdeka yang mengacu pada kerangka peraturan Kemendikdasmen berikut:
+Acuan Regulasi: ${regLabel}
+Sekolah: ${params.ctx.school.name || '-'} (Jenjang: ${params.ctx.school.level}, Kurikulum: ${params.ctx.school.curriculum})
 Mata Pelajaran: ${params.subject}
 Fase: ${params.phase} | Kelas: ${params.gradeLevel}
-Elemen: ${params.element}
-Catatan/Referensi dari Guru:
-${params.referenceNotes || 'Tidak ada teks referensi khusus; susun kerangka CP umum yang sesuai fase dan elemen untuk ditinjau dan disesuaikan oleh guru dengan dokumen resmi BSKAP.'}
+Cakupan Pembuatan: ${scopeInstruction}
+Catatan / Fokus Materi Esensial dari Guru:
+${params.referenceNotes?.trim() || 'Tidak ada catatan khusus; susun kompetensi inti, materi esensial, dan kecakapan yang selaras dengan jenjang/fase serta Dimensi Profil Lulusan.'}
 
-Kembalikan JSON dengan format:
+Ketentuan penyusunan CP:
+- Gunakan redaksi khas Capaian Pembelajaran Kurikulum Merdeka (kompetensi operasional + lingkup materi esensial pada akhir Fase ${params.phase}).
+- Selaraskan dengan pembagian elemen resmi mata pelajaran "${params.subject}" dan semangat pembelajaran mendalam / Dimensi Profil Lulusan sesuai regulasi Kemendikdasmen yang dipilih.
+- Pada field "note", berikan catatan verifikasi singkat agar guru mencocokkan kembali redaksi akhir dengan lampiran resmi ${regLabel}.
+
+Kembalikan JSON dengan format PERSIS seperti berikut:
 {
-  "description": "narasi CP lengkap dalam 1-2 paragraf",
-  "note": "catatan verifikasi untuk guru"
+  "items": [
+    {
+      "element": "Nama Elemen CP",
+      "description": "Narasi lengkap Capaian Pembelajaran pada elemen ini dalam 1-2 paragraf",
+      "referenceSource": "${regLabel}"
+    }
+  ],
+  "note": "Catatan verifikasi untuk guru"
 }`;
-  return callGemini({
+
+  const raw = await callGemini<{
+    items?: Array<Partial<CpAiDraftItem>>;
+    description?: string;
+    note?: string;
+  }>({
     prompt,
     systemInstruction: BASE_SYSTEM_INSTRUCTION,
     jsonMode: true,
   });
+
+  const normalizedItems: CpAiDraftItem[] = Array.isArray(raw.items) && raw.items.length > 0
+    ? raw.items
+        .map((item) => ({
+          element: String(item.element || params.element || 'Elemen Utama').trim(),
+          description: String(item.description || '').trim(),
+          referenceSource: String(item.referenceSource || regLabel).trim(),
+        }))
+        .filter((item) => item.description.length > 0)
+    : raw.description
+      ? [
+          {
+            element: (params.element || 'Elemen Utama').trim(),
+            description: String(raw.description).trim(),
+            referenceSource: regLabel,
+          },
+        ]
+      : [];
+
+  return {
+    items: normalizedItems,
+    note:
+      raw.note?.trim() ||
+      `Draft disusun mengacu pada kerangka ${regLabel}. Mohon verifikasi redaksi akhir dengan lampiran resmi Kemendikdasmen.`,
+  };
 }
 
 export async function generateTpDraftsFromCp(params: {

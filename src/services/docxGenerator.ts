@@ -22,6 +22,7 @@ import {
 import { saveAs } from 'file-saver';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
+import { DEFAULT_SCHOOL_LOGO_URL } from '../db/database';
 import type {
   AcademicYear,
   AppSettings,
@@ -67,19 +68,44 @@ function getFont(bundle: DocxIdentityBundle): string {
   return bundle.settings?.defaultFontFamily || 'Times New Roman';
 }
 
-function base64ToUint8Array(dataUrl: string): { bytes: Uint8Array; type: 'png' | 'jpg' } | null {
+const logoCache = new Map<string, { bytes: Uint8Array; type: 'png' | 'jpg' }>();
+
+async function resolveLogoImageData(
+  logoSrc?: string
+): Promise<{ bytes: Uint8Array; type: 'png' | 'jpg' } | null> {
+  if (logoSrc === '') return null;
+  const src = logoSrc || DEFAULT_SCHOOL_LOGO_URL;
+  const cached = logoCache.get(src);
+  if (cached) return cached;
+
   try {
-    const match = dataUrl.match(/^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/i);
-    if (!match) return null;
-    const rawExt = match[1].toLowerCase();
-    const type: 'png' | 'jpg' = rawExt === 'png' ? 'png' : 'jpg';
-    const b64 = match[2];
-    const bin = atob(b64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) {
-      bytes[i] = bin.charCodeAt(i);
+    if (src.startsWith('data:image/')) {
+      const match = src.match(/^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/i);
+      if (!match) return null;
+      const rawExt = match[1].toLowerCase();
+      const type: 'png' | 'jpg' = rawExt === 'png' ? 'png' : 'jpg';
+      const b64 = match[2];
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) {
+        bytes[i] = bin.charCodeAt(i);
+      }
+      const res = { bytes, type };
+      logoCache.set(src, res);
+      return res;
     }
-    return { bytes, type };
+
+    const response = await fetch(src);
+    if (!response.ok) return null;
+    const buf = await response.arrayBuffer();
+    const contentType = response.headers.get('content-type') || '';
+    const type: 'png' | 'jpg' =
+      contentType.includes('png') || src.toLowerCase().endsWith('.png')
+        ? 'png'
+        : 'jpg';
+    const res = { bytes: new Uint8Array(buf), type };
+    logoCache.set(src, res);
+    return res;
   } catch {
     return null;
   }
@@ -118,9 +144,12 @@ function pText(
   });
 }
 
-function buildKopSurat(bundle: DocxIdentityBundle, font: string): Array<Paragraph | Table> {
+async function buildKopSurat(
+  bundle: DocxIdentityBundle,
+  font: string
+): Promise<Array<Paragraph | Table>> {
   const { school } = bundle;
-  const imgData = school.logoBase64 ? base64ToUint8Array(school.logoBase64) : null;
+  const imgData = await resolveLogoImageData(school.logoBase64);
 
   const textRuns: Paragraph[] = [
     pText((school.name || 'NAMA SEKOLAH / MADRASAH').toUpperCase(), font, {
@@ -460,7 +489,7 @@ export async function generateIdentityDocx(bundle: DocxIdentityBundle): Promise<
   const font = getFont(bundle);
   const { school, teacher, principal } = bundle;
   return createA4DocumentBlob(bundle, 'Identitas Sekolah, Guru & Kepala Sekolah', [
-    ...buildKopSurat(bundle, font),
+    ...(await buildKopSurat(bundle, font)),
     pText('DATA IDENTITAS ADMINISTRASI PEMBELAJARAN', font, {
       bold: true,
       size: FONT_SIZE_TITLE,
@@ -515,7 +544,7 @@ export async function generateStudentsDocx(
   const font = getFont(bundle);
   const sorted = students.slice().sort((a, b) => a.orderNumber - b.orderNumber);
   return createA4DocumentBlob(bundle, `Daftar Siswa ${classGroup.name}`, [
-    ...buildKopSurat(bundle, font),
+    ...(await buildKopSurat(bundle, font)),
     pText(`DAFTAR PESERTA DIDIK KELAS ${classGroup.name.toUpperCase()}`, font, {
       bold: true,
       size: FONT_SIZE_TITLE,
@@ -559,7 +588,7 @@ export async function generateEffectiveWeeksDocx(
   const font = getFont(bundle);
   const allMonths = [...summary.semester1.months, ...summary.semester2.months];
   return createA4DocumentBlob(bundle, 'Kalender & Minggu Efektif', [
-    ...buildKopSurat(bundle, font),
+    ...(await buildKopSurat(bundle, font)),
     pText('RINCIAN MINGGU EFEKTIF PEMBELAJARAN', font, {
       bold: true,
       size: FONT_SIZE_TITLE,
@@ -618,7 +647,7 @@ export async function generateCpTpDocx(
 ): Promise<Blob> {
   const font = getFont(bundle);
   return createA4DocumentBlob(bundle, 'Capaian & Tujuan Pembelajaran', [
-    ...buildKopSurat(bundle, font),
+    ...(await buildKopSurat(bundle, font)),
     pText('CAPAIAN PEMBELAJARAN (CP) DAN TUJUAN PEMBELAJARAN (TP)', font, {
       bold: true,
       size: FONT_SIZE_TITLE,
@@ -666,7 +695,7 @@ export async function generateAtpDocx(
     bundle,
     `ATP ${atp.subject} Kelas ${atp.gradeLevel}`,
     [
-      ...buildKopSurat(bundle, font),
+      ...(await buildKopSurat(bundle, font)),
       pText('ALUR TUJUAN PEMBELAJARAN (ATP)', font, {
         bold: true,
         size: FONT_SIZE_TITLE,
@@ -722,7 +751,7 @@ export async function generateProtaDocx(
     bundle,
     `PROTA ${subject} Kelas ${gradeLevel}`,
     [
-      ...buildKopSurat(bundle, font),
+      ...(await buildKopSurat(bundle, font)),
       pText('PROGRAM TAHUNAN (PROTA)', font, {
         bold: true,
         size: FONT_SIZE_TITLE,
@@ -775,7 +804,7 @@ export async function generatePromesDocx(
     bundle,
     `PROMES ${subject} Kelas ${gradeLevel} Sem ${semester}`,
     [
-      ...buildKopSurat(bundle, font),
+      ...(await buildKopSurat(bundle, font)),
       pText(`PROGRAM SEMESTER (PROMES) - SEMESTER ${semester}`, font, {
         bold: true,
         size: FONT_SIZE_TITLE,
@@ -830,7 +859,7 @@ export async function generateSyllabusDocx(
     bundle,
     `Silabus ${subject} Kelas ${gradeLevel}`,
     [
-      ...buildKopSurat(bundle, font),
+      ...(await buildKopSurat(bundle, font)),
       pText('SILABUS PEMBELAJARAN', font, {
         bold: true,
         size: FONT_SIZE_TITLE,
@@ -906,7 +935,7 @@ export async function generateTeachingModuleDocx(
   ];
 
   const paragraphs: Array<Paragraph | Table> = [
-    ...buildKopSurat(bundle, font),
+    ...(await buildKopSurat(bundle, font)),
     pText(`MODUL AJAR / RPP: ${mod.title.toUpperCase()}`, font, {
       bold: true,
       size: FONT_SIZE_TITLE,
@@ -948,7 +977,7 @@ export async function generateLkpdDocx(
 ): Promise<Blob> {
   const font = getFont(bundle);
   const children: Array<Paragraph | Table> = [
-    ...buildKopSurat(bundle, font),
+    ...(await buildKopSurat(bundle, font)),
     pText(`LEMBAR KERJA PESERTA DIDIK (LKPD - ${lkpd.type.toUpperCase()})`, font, {
       bold: true,
       size: FONT_SIZE_TITLE,
@@ -1010,7 +1039,7 @@ export async function generateAssessmentQuestionsDocx(
 ): Promise<Blob> {
   const font = getFont(bundle);
   const children: Array<Paragraph | Table> = [
-    ...buildKopSurat(bundle, font),
+    ...(await buildKopSurat(bundle, font)),
     pText(`NASKAH SOAL ${assessment.category.toUpperCase()}`, font, {
       bold: true,
       size: FONT_SIZE_TITLE,
@@ -1104,7 +1133,7 @@ export async function generateBlueprintDocx(
     bundle,
     `Kisi-Kisi ${assessment.name}`,
     [
-      ...buildKopSurat(bundle, font),
+      ...(await buildKopSurat(bundle, font)),
       pText(`KISI-KISI PENULISAN SOAL: ${assessment.name.toUpperCase()}`, font, {
         bold: true,
         size: FONT_SIZE_TITLE,
@@ -1139,7 +1168,7 @@ export async function generateAnswerKeyDocx(
 ): Promise<Blob> {
   const font = getFont(bundle);
   return createA4DocumentBlob(bundle, `Kunci Jawaban ${assessment.name}`, [
-    ...buildKopSurat(bundle, font),
+    ...(await buildKopSurat(bundle, font)),
     pText(`KUNCI JAWABAN & PEDOMAN PENSKORAN: ${assessment.name.toUpperCase()}`, font, {
       bold: true,
       size: FONT_SIZE_TITLE,
@@ -1215,7 +1244,7 @@ export async function generateAttendanceDocx(
   });
 
   return createA4DocumentBlob(bundle, `Rekap Presensi ${classGroup.name}`, [
-    ...buildKopSurat(bundle, font),
+    ...(await buildKopSurat(bundle, font)),
     pText(`REKAPITULASI PRESENSI SISWA KELAS ${classGroup.name.toUpperCase()}`, font, {
       bold: true,
       size: FONT_SIZE_TITLE,
@@ -1255,7 +1284,7 @@ export async function generateJournalsDocx(
     bundle,
     `Jurnal Mengajar ${classGroup.name}`,
     [
-      ...buildKopSurat(bundle, font),
+      ...(await buildKopSurat(bundle, font)),
       pText(`JURNAL MENGAJAR GURU - KELAS ${classGroup.name.toUpperCase()}`, font, {
         bold: true,
         size: FONT_SIZE_TITLE,
@@ -1325,7 +1354,7 @@ export async function generateGradesDocx(
     bundle,
     `Daftar & Rekap Nilai ${classGroup.name}`,
     [
-      ...buildKopSurat(bundle, font),
+      ...(await buildKopSurat(bundle, font)),
       pText(`DAFTAR NILAI DAN REKAP CAPAIAN - KELAS ${classGroup.name.toUpperCase()}`, font, {
         bold: true,
         size: FONT_SIZE_TITLE,
@@ -1363,7 +1392,7 @@ export async function generateReportDescriptionsDocx(
     bundle,
     `Deskripsi Rapor ${classGroup.name}`,
     [
-      ...buildKopSurat(bundle, font),
+      ...(await buildKopSurat(bundle, font)),
       pText(`REKAP DESKRIPSI CAPAIAN RAPOR - KELAS ${classGroup.name.toUpperCase()}`, font, {
         bold: true,
         size: FONT_SIZE_TITLE,

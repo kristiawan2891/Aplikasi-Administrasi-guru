@@ -25,6 +25,8 @@ import {
   SegmentedTabs,
 } from '../components/UI';
 import {
+  KEMENDIKDASMEN_CP_REGULATIONS,
+  type CpAiDraftItem,
   generateCpDraft,
   generateTpDraftsFromCp,
 } from '../services/aiService';
@@ -90,16 +92,21 @@ export const PlanningPage: React.FC = () => {
   const defaultSubject = teacher?.subjects[0] || 'Matematika';
 
   // CP form
+  const defaultCpReg = KEMENDIKDASMEN_CP_REGULATIONS[0];
+  const [cpInputMode, setCpInputMode] = useState<'manual' | 'ai'>('manual');
   const [editingCpId, setEditingCpId] = useState<string | null>(null);
   const [cpSubject, setCpSubject] = useState(defaultSubject);
   const [cpPhase, setCpPhase] = useState('D');
   const [cpGrade, setCpGrade] = useState('7');
   const [cpElement, setCpElement] = useState('');
   const [cpDesc, setCpDesc] = useState('');
-  const [cpRef, setCpRef] = useState('');
+  const [cpRegPreset, setCpRegPreset] = useState<string>(defaultCpReg.id);
+  const [cpRef, setCpRef] = useState<string>(defaultCpReg.label);
+  const [cpAiScope, setCpAiScope] = useState<'all_elements' | 'single'>('all_elements');
+  const [cpAiFocusNotes, setCpAiFocusNotes] = useState('');
   const [cpAiLoading, setCpAiLoading] = useState(false);
   const [cpAiDraft, setCpAiDraft] = useState<{
-    description: string;
+    items: CpAiDraftItem[];
     note: string;
   } | null>(null);
 
@@ -187,12 +194,35 @@ export const PlanningPage: React.FC = () => {
   );
 
   // ======================== CP HANDLERS ========================
+  const handleSelectRegPreset = (presetId: string) => {
+    setCpRegPreset(presetId);
+    const found = KEMENDIKDASMEN_CP_REGULATIONS.find((r) => r.id === presetId);
+    if (found && presetId !== 'custom') {
+      setCpRef(found.label);
+    } else if (presetId === 'custom') {
+      const isPresetLabel = KEMENDIKDASMEN_CP_REGULATIONS.some(
+        (r) => r.id !== 'custom' && r.label === cpRef
+      );
+      if (isPresetLabel) setCpRef('');
+    }
+  };
+
+  const resetCpForm = () => {
+    setEditingCpId(null);
+    setCpElement('');
+    setCpDesc('');
+    setCpRegPreset(defaultCpReg.id);
+    setCpRef(defaultCpReg.label);
+    setCpAiDraft(null);
+  };
+
   const handleSaveCp = async (isAi = false, verified = true) => {
     if (!activeYear || !cpElement.trim() || !cpDesc.trim()) {
       notify('Elemen dan deskripsi CP wajib diisi.', 'error');
       return;
     }
     const id = editingCpId || createId('cp');
+    const existing = editingCpId ? cps.find((c) => c.id === editingCpId) : undefined;
     await db.cps.put({
       id,
       academicYearId: activeYear.id,
@@ -202,23 +232,24 @@ export const PlanningPage: React.FC = () => {
       element: cpElement.trim(),
       description: cpDesc.trim(),
       referenceSource: cpRef.trim(),
-      isAiDraft: isAi,
+      isAiDraft: existing ? existing.isAiDraft : isAi,
       isVerified: verified,
-      createdAt: new Date().toISOString(),
+      createdAt: existing?.createdAt || new Date().toISOString(),
     });
-    setEditingCpId(null);
-    setCpElement('');
-    setCpDesc('');
-    setCpRef('');
-    setCpAiDraft(null);
+    resetCpForm();
     await refreshData();
     notify('Capaian Pembelajaran (CP) disimpan.');
   };
 
   const handleGenerateCpAi = async () => {
     if (!school || !teacher || !activeYear) return;
+    if (cpAiScope === 'single' && !cpElement.trim()) {
+      notify('Isi nama Elemen CP terlebih dahulu atau pilih mode Otomatis Elemen Utama.', 'error');
+      return;
+    }
     setCpAiLoading(true);
     try {
+      const regText = cpRef.trim() || defaultCpReg.label;
       const draft = await generateCpDraft({
         ctx: {
           school,
@@ -226,18 +257,68 @@ export const PlanningPage: React.FC = () => {
           academicYearName: activeYear.name,
           semester: activeYear.activeSemester,
         },
-        subject: cpSubject || defaultSubject,
+        subject: cpSubject.trim() || defaultSubject,
         phase: cpPhase,
         gradeLevel: cpGrade,
-        element: cpElement || 'Elemen Utama',
-        referenceNotes: cpRef,
+        element: cpElement.trim() || 'Elemen Utama',
+        regulation: regText,
+        scope: cpAiScope,
+        referenceNotes: cpAiFocusNotes.trim(),
       });
+      if (draft.items.length === 0) {
+        notify('AI tidak mengembalikan item CP. Silakan coba lagi.', 'error');
+        return;
+      }
       setCpAiDraft(draft);
+      notify(`${draft.items.length} draft CP sesuai acuan Kemendikdasmen berhasil dibuat.`);
     } catch (err: unknown) {
       notify(err instanceof Error ? err.message : 'Gagal membuat draft CP.', 'error');
     } finally {
       setCpAiLoading(false);
     }
+  };
+
+  const handleSaveAiDraftItems = async (verified: boolean) => {
+    if (!activeYear || !cpAiDraft || cpAiDraft.items.length === 0) return;
+    const validItems = cpAiDraft.items.filter(
+      (item) => item.element.trim() && item.description.trim()
+    );
+    if (validItems.length === 0) {
+      notify('Pastikan elemen dan deskripsi CP tidak kosong.', 'error');
+      return;
+    }
+    const now = new Date().toISOString();
+    await db.cps.bulkPut(
+      validItems.map((item) => ({
+        id: createId('cp'),
+        academicYearId: activeYear.id,
+        subject: cpSubject.trim() || defaultSubject,
+        phase: cpPhase,
+        gradeLevel: cpGrade,
+        element: item.element.trim(),
+        description: item.description.trim(),
+        referenceSource: item.referenceSource.trim() || cpRef.trim() || defaultCpReg.label,
+        isAiDraft: true,
+        isVerified: verified,
+        createdAt: now,
+      }))
+    );
+    setCpAiDraft(null);
+    await refreshData();
+    notify(
+      verified
+        ? `${validItems.length} CP hasil AI diverifikasi dan disimpan.`
+        : `${validItems.length} draft CP disimpan untuk ditinjau kembali.`
+    );
+  };
+
+  const handleVerifyCp = async (cp: LearningOutcomeCP) => {
+    await db.cps.put({
+      ...cp,
+      isVerified: true,
+    });
+    await refreshData();
+    notify(`CP elemen "${cp.element}" ditandai terverifikasi.`);
   };
 
   const handleDeleteCp = async (cp: LearningOutcomeCP) => {
@@ -249,6 +330,7 @@ export const PlanningPage: React.FC = () => {
     });
     if (!ok) return;
     await db.cps.delete(cp.id);
+    if (editingCpId === cp.id) resetCpForm();
     await refreshData();
     notify('CP dihapus.', 'info');
   };
@@ -768,9 +850,52 @@ export const PlanningPage: React.FC = () => {
       {tab === 'cp' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4">
-            <h3 className="text-base font-semibold text-slate-900">
-              {editingCpId ? 'Edit CP' : 'Tambah Capaian Pembelajaran'}
-            </h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-base font-semibold text-slate-900">
+                {editingCpId ? 'Edit Capaian Pembelajaran' : 'Input Capaian Pembelajaran'}
+              </h3>
+              {editingCpId && (
+                <button
+                  type="button"
+                  onClick={resetCpForm}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-800"
+                >
+                  Batal Edit
+                </button>
+              )}
+            </div>
+
+            {/* Menu Pilih Cara Pengisian CP */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setCpInputMode('manual')}
+                className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md transition-colors ${
+                  cpInputMode === 'manual'
+                    ? 'bg-white text-blue-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Isi Manual</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingCpId(null);
+                  setCpInputMode('ai');
+                }}
+                className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md transition-colors ${
+                  cpInputMode === 'ai'
+                    ? 'bg-teal-700 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                <span>Buat dengan AI</span>
+              </button>
+            </div>
+
             <div className="grid grid-cols-3 gap-2">
               <FormField label="Mapel">
                 <input
@@ -802,72 +927,221 @@ export const PlanningPage: React.FC = () => {
                 />
               </FormField>
             </div>
-            <FormField label="Elemen CP" required>
-              <input
-                type="text"
+
+            <FormField label="Acuan Peraturan Kemendikdasmen">
+              <select
                 className={inputClass}
-                value={cpElement}
-                onChange={(e) => setCpElement(e.target.value)}
-                placeholder="Contoh: Bilangan / Aljabar / Pemahaman Konsep"
-              />
+                value={cpRegPreset}
+                onChange={(e) => handleSelectRegPreset(e.target.value)}
+              >
+                {KEMENDIKDASMEN_CP_REGULATIONS.map((reg) => (
+                  <option key={reg.id} value={reg.id}>
+                    {reg.shortLabel}
+                  </option>
+                ))}
+              </select>
             </FormField>
-            <FormField label="Deskripsi CP" required>
-              <textarea
-                rows={4}
-                className={inputClass}
-                value={cpDesc}
-                onChange={(e) => setCpDesc(e.target.value)}
-                placeholder="Salin atau tulis Capaian Pembelajaran resmi..."
-              />
-            </FormField>
-            <FormField label="Sumber / Referensi Resmi (Opsional)">
+
+            <FormField
+              label={
+                cpRegPreset === 'custom'
+                  ? 'Nomor / Judul Peraturan Kemendikdasmen'
+                  : 'Referensi Dokumen Resmi (Dapat Diedit)'
+              }
+            >
               <input
                 type="text"
                 className={inputClass}
                 value={cpRef}
-                onChange={(e) => setCpRef(e.target.value)}
-                placeholder="Contoh: Keputusan Kepala BSKAP No..."
+                onChange={(e) => {
+                  setCpRef(e.target.value);
+                  const matched = KEMENDIKDASMEN_CP_REGULATIONS.find(
+                    (r) => r.id !== 'custom' && r.label === e.target.value
+                  );
+                  setCpRegPreset(matched ? matched.id : 'custom');
+                }}
+                placeholder="Contoh: Keputusan Kepala BSKAP Kemendikdasmen No. 046/H/KR/2025"
               />
             </FormField>
-            <div className="flex flex-col gap-2 pt-2">
-              <PrimaryButton onClick={() => handleSaveCp(false, true)}>
-                {editingCpId ? 'Simpan Perubahan CP' : 'Simpan CP'}
-              </PrimaryButton>
-              <AiActionButton loading={cpAiLoading} onClick={handleGenerateCpAi}>
-                Buat Draft CP dengan AI
-              </AiActionButton>
-            </div>
 
-            {cpAiDraft && (
-              <div className="p-4 bg-teal-50 border border-teal-200 rounded-lg space-y-3 text-xs">
-                <div className="font-semibold text-teal-900 flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 shrink-0" />
-                  <span>Draft AI — Wajib Diverifikasi Guru</span>
-                </div>
-                <textarea
-                  rows={4}
-                  className={inputClass}
-                  value={cpAiDraft.description}
-                  onChange={(e) =>
-                    setCpAiDraft({ ...cpAiDraft, description: e.target.value })
-                  }
-                />
-                <p className="text-teal-800">{cpAiDraft.note}</p>
-                <div className="flex gap-2">
-                  <PrimaryButton
-                    onClick={() => {
-                      setCpDesc(cpAiDraft.description);
-                      setCpAiDraft(null);
-                      notify('Draft dipindahkan ke formulir. Periksa dan klik Simpan CP.');
-                    }}
-                  >
-                    Gunakan ke Formulir
+            {cpInputMode === 'manual' ? (
+              <>
+                <FormField label="Elemen CP" required>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    value={cpElement}
+                    onChange={(e) => setCpElement(e.target.value)}
+                    placeholder="Contoh: Bilangan / Aljabar / Pemahaman Konsep"
+                  />
+                </FormField>
+                <FormField label="Deskripsi CP" required>
+                  <textarea
+                    rows={5}
+                    className={inputClass}
+                    value={cpDesc}
+                    onChange={(e) => setCpDesc(e.target.value)}
+                    placeholder="Salin atau tulis Capaian Pembelajaran sesuai peraturan Kemendikdasmen..."
+                  />
+                </FormField>
+                <div className="flex flex-col gap-2 pt-1">
+                  <PrimaryButton onClick={() => handleSaveCp(false, true)}>
+                    {editingCpId ? 'Simpan Perubahan CP' : 'Simpan CP Manual'}
                   </PrimaryButton>
-                  <SecondaryButton onClick={() => setCpAiDraft(null)}>
-                    Tutup
-                  </SecondaryButton>
                 </div>
-              </div>
+              </>
+            ) : (
+              <>
+                <div className="p-3 bg-teal-50/70 border border-teal-200 rounded-lg text-xs text-teal-900 leading-relaxed">
+                  AI menyusun draft CP sesuai struktur elemen, kompetensi, dan Dimensi Profil
+                  Lulusan berdasarkan regulasi Kemendikdasmen yang dipilih.
+                </div>
+
+                <FormField label="Cakupan Pembuatan CP">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCpAiScope('all_elements')}
+                      className={`px-3 py-2 text-xs font-medium rounded-lg border text-left transition-colors ${
+                        cpAiScope === 'all_elements'
+                          ? 'bg-teal-50 border-teal-600 text-teal-900'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      Otomatis Elemen Utama Mapel & Fase
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCpAiScope('single')}
+                      className={`px-3 py-2 text-xs font-medium rounded-lg border text-left transition-colors ${
+                        cpAiScope === 'single'
+                          ? 'bg-teal-50 border-teal-600 text-teal-900'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      1 Elemen Tertentu
+                    </button>
+                  </div>
+                </FormField>
+
+                {cpAiScope === 'single' && (
+                  <FormField label="Nama Elemen CP yang Akan Dibuat" required>
+                    <input
+                      type="text"
+                      className={inputClass}
+                      value={cpElement}
+                      onChange={(e) => setCpElement(e.target.value)}
+                      placeholder="Contoh: Bilangan / Pemahaman IPA / Menyimak"
+                    />
+                  </FormField>
+                )}
+
+                <FormField label="Fokus Materi / Catatan Tambahan (Opsional)">
+                  <textarea
+                    rows={3}
+                    className={inputClass}
+                    value={cpAiFocusNotes}
+                    onChange={(e) => setCpAiFocusNotes(e.target.value)}
+                    placeholder="Contoh: Tekankan literasi numerasi, konteks lingkungan sekolah, atau salin potongan catatan BSKAP..."
+                  />
+                </FormField>
+
+                <AiActionButton loading={cpAiLoading} onClick={handleGenerateCpAi}>
+                  Buat Draft CP Sesuai Kemendikdasmen
+                </AiActionButton>
+
+                {cpAiDraft && (
+                  <div className="p-4 bg-teal-50 border border-teal-200 rounded-lg space-y-3 text-xs">
+                    <div className="font-semibold text-teal-900 flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      <span>
+                        Preview {cpAiDraft.items.length} Draft CP AI — Periksa Sebelum Simpan
+                      </span>
+                    </div>
+                    <p className="text-teal-800 leading-relaxed">{cpAiDraft.note}</p>
+
+                    <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                      {cpAiDraft.items.map((item, idx) => (
+                        <div
+                          key={`${idx}-${item.element}`}
+                          className="bg-white border border-teal-200 rounded-lg p-3 space-y-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-slate-700 font-mono">
+                              Elemen #{idx + 1}
+                            </span>
+                            {cpAiDraft.items.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setCpAiDraft({
+                                    ...cpAiDraft,
+                                    items: cpAiDraft.items.filter((_, i) => i !== idx),
+                                  })
+                                }
+                                className="text-slate-400 hover:text-red-700"
+                                title="Hapus item draft ini"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            className={inputClass}
+                            value={item.element}
+                            onChange={(e) => {
+                              const next = [...cpAiDraft.items];
+                              next[idx] = { ...next[idx], element: e.target.value };
+                              setCpAiDraft({ ...cpAiDraft, items: next });
+                            }}
+                            placeholder="Nama Elemen CP"
+                          />
+                          <textarea
+                            rows={4}
+                            className={inputClass}
+                            value={item.description}
+                            onChange={(e) => {
+                              const next = [...cpAiDraft.items];
+                              next[idx] = { ...next[idx], description: e.target.value };
+                              setCpAiDraft({ ...cpAiDraft, items: next });
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <PrimaryButton onClick={() => handleSaveAiDraftItems(true)}>
+                        {cpAiDraft.items.length > 1
+                          ? `Verifikasi & Simpan Semua (${cpAiDraft.items.length})`
+                          : 'Verifikasi & Simpan CP'}
+                      </PrimaryButton>
+                      <SecondaryButton onClick={() => handleSaveAiDraftItems(false)}>
+                        Simpan sebagai Draft
+                      </SecondaryButton>
+                      {cpAiDraft.items.length === 1 && (
+                        <SecondaryButton
+                          onClick={() => {
+                            const only = cpAiDraft.items[0];
+                            setCpElement(only.element);
+                            setCpDesc(only.description);
+                            setCpRef(only.referenceSource || cpRef);
+                            setCpAiDraft(null);
+                            setCpInputMode('manual');
+                            notify('Draft dipindahkan ke mode Isi Manual untuk penyempurnaan.');
+                          }}
+                        >
+                          Edit di Form Manual
+                        </SecondaryButton>
+                      )}
+                      <SecondaryButton onClick={() => setCpAiDraft(null)}>
+                        Tutup
+                      </SecondaryButton>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -875,7 +1149,7 @@ export const PlanningPage: React.FC = () => {
             {cps.length === 0 ? (
               <EmptyState
                 title="Belum Ada Capaian Pembelajaran (CP)"
-                description="Masukkan CP sesuai mata pelajaran dan fase Anda. CP menjadi landasan utama untuk menyusun TP, ATP, PROTA, dan Modul Ajar."
+                description="Pilih menu Isi Manual untuk menyalin CP resmi, atau menu Buat dengan AI untuk menyusun CP sesuai peraturan Kemendikdasmen yang berlaku."
               />
             ) : (
               cps.map((cp) => (
@@ -888,18 +1162,32 @@ export const PlanningPage: React.FC = () => {
                       <div className="text-xs font-medium text-blue-800">
                         {cp.subject} · Fase {cp.phase} · Kelas {cp.gradeLevel} · Elemen:{' '}
                         {cp.element}
-                        {cp.isAiDraft && !cp.isVerified && ' · Draft AI (Perlu Verifikasi)'}
+                        {cp.isAiDraft
+                          ? cp.isVerified
+                            ? ' · AI Terverifikasi'
+                            : ' · Draft AI (Perlu Verifikasi)'
+                          : ' · Input Manual'}
                       </div>
                       <p className="mt-2 text-sm text-slate-800 leading-relaxed">
                         {cp.description}
                       </p>
                       {cp.referenceSource && (
                         <div className="mt-2 text-xs text-slate-500">
-                          Referensi: {cp.referenceSource}
+                          Acuan: {cp.referenceSource}
                         </div>
                       )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      {cp.isAiDraft && !cp.isVerified && (
+                        <button
+                          type="button"
+                          onClick={() => handleVerifyCp(cp)}
+                          title="Tandai CP Terverifikasi"
+                          className="p-1.5 text-teal-700 hover:bg-teal-50 rounded-md"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
@@ -909,8 +1197,15 @@ export const PlanningPage: React.FC = () => {
                           setCpGrade(cp.gradeLevel);
                           setCpElement(cp.element);
                           setCpDesc(cp.description);
-                          setCpRef(cp.referenceSource);
+                          const refVal = cp.referenceSource || defaultCpReg.label;
+                          setCpRef(refVal);
+                          const matchedReg = KEMENDIKDASMEN_CP_REGULATIONS.find(
+                            (r) => r.id !== 'custom' && r.label === refVal
+                          );
+                          setCpRegPreset(matchedReg ? matchedReg.id : 'custom');
+                          setCpInputMode('manual');
                         }}
+                        title="Edit CP"
                         className="p-1.5 text-slate-500 hover:text-blue-800"
                       >
                         <Edit3 className="w-4 h-4" />
@@ -918,6 +1213,7 @@ export const PlanningPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleDeleteCp(cp)}
+                        title="Hapus CP"
                         className="p-1.5 text-slate-500 hover:text-red-700"
                       >
                         <Trash2 className="w-4 h-4" />

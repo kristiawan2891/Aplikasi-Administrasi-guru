@@ -123,8 +123,39 @@ export async function requestPersistentStorage(): Promise<boolean> {
   return false;
 }
 
+export const DEFAULT_SCHOOL_LOGO_URL =
+  '/assets/aistudio/Untitled_design__5__11zon_04268d12.png';
+
+export function getCurrentAcademicYearDefaults(refDate = new Date()): {
+  name: string;
+  startDate: string;
+  endDate: string;
+  sem1StartDate: string;
+  sem1EndDate: string;
+  sem2StartDate: string;
+  sem2EndDate: string;
+  activeSemester: 1 | 2;
+} {
+  const year = refDate.getFullYear();
+  const month = refDate.getMonth() + 1; // 1..12
+  const startYear = month >= 7 ? year : year - 1;
+  const endYear = startYear + 1;
+  const activeSemester: 1 | 2 = month >= 7 ? 1 : 2;
+  return {
+    name: `${startYear}/${endYear}`,
+    startDate: `${startYear}-07-13`,
+    endDate: `${endYear}-06-18`,
+    sem1StartDate: `${startYear}-07-13`,
+    sem1EndDate: `${startYear}-12-18`,
+    sem2StartDate: `${endYear}-01-05`,
+    sem2EndDate: `${endYear}-06-18`,
+    activeSemester,
+  };
+}
+
 export async function ensureInitialSetup(): Promise<void> {
   const now = new Date().toISOString();
+  const ayDefaults = getCurrentAcademicYearDefaults();
 
   const existingSchool = await db.schoolProfile.get('default');
   if (!existingSchool) {
@@ -138,12 +169,18 @@ export async function ensureInitialSetup(): Promise<void> {
       district: '',
       city: '',
       province: '',
-      academicYearText: '2026/2027',
-      activeSemester: 1,
+      academicYearText: ayDefaults.name,
+      activeSemester: ayDefaults.activeSemester,
       curriculum: 'Kurikulum Merdeka',
+      logoBase64: DEFAULT_SCHOOL_LOGO_URL,
       phone: '',
       email: '',
       additionalInfo: '',
+      updatedAt: now,
+    });
+  } else if (existingSchool.logoBase64 === undefined) {
+    await db.schoolProfile.update('default', {
+      logoBase64: DEFAULT_SCHOOL_LOGO_URL,
       updatedAt: now,
     });
   }
@@ -196,10 +233,10 @@ export async function ensureInitialSetup(): Promise<void> {
     activeYearId = createId('ay');
     await db.academicYears.put({
       id: activeYearId,
-      name: '2026/2027',
-      startDate: '2026-07-13',
-      endDate: '2027-06-18',
-      activeSemester: 1,
+      name: ayDefaults.name,
+      startDate: ayDefaults.startDate,
+      endDate: ayDefaults.endDate,
+      activeSemester: ayDefaults.activeSemester,
       isActive: true,
       isArchived: false,
       createdAt: now,
@@ -218,12 +255,12 @@ export async function ensureInitialSetup(): Promise<void> {
       await db.calendarConfigs.put({
         id: createId('cal'),
         academicYearId: activeYearId,
-        yearStartDate: '2026-07-13',
-        yearEndDate: '2027-06-18',
-        sem1StartDate: '2026-07-13',
-        sem1EndDate: '2026-12-18',
-        sem2StartDate: '2027-01-04',
-        sem2EndDate: '2027-06-18',
+        yearStartDate: ayDefaults.startDate,
+        yearEndDate: ayDefaults.endDate,
+        sem1StartDate: ayDefaults.sem1StartDate,
+        sem1EndDate: ayDefaults.sem1EndDate,
+        sem2StartDate: ayDefaults.sem2StartDate,
+        sem2EndDate: ayDefaults.sem2EndDate,
         learningDaysPerWeek: 5,
         hoursPerWeek: 4,
         minutesPerHour: 40,
@@ -276,6 +313,48 @@ export async function switchActiveAcademicYear(yearId: string): Promise<void> {
       });
     }
   });
+}
+
+export async function updateAcademicYearDetails(
+  yearId: string,
+  patch: {
+    name: string;
+    startDate: string;
+    endDate: string;
+    activeSemester?: 1 | 2;
+  }
+): Promise<void> {
+  await db.transaction(
+    'rw',
+    [db.academicYears, db.schoolProfile, db.calendarConfigs],
+    async () => {
+      const target = await db.academicYears.get(yearId);
+      if (!target) return;
+      const nextSem = patch.activeSemester ?? target.activeSemester;
+      await db.academicYears.update(yearId, {
+        name: patch.name.trim(),
+        startDate: patch.startDate,
+        endDate: patch.endDate,
+        activeSemester: nextSem,
+      });
+      if (target.isActive) {
+        await db.schoolProfile.update('default', {
+          academicYearText: patch.name.trim(),
+          activeSemester: nextSem,
+        });
+      }
+      const cal = await db.calendarConfigs
+        .where('academicYearId')
+        .equals(yearId)
+        .first();
+      if (cal) {
+        await db.calendarConfigs.update(cal.id, {
+          yearStartDate: patch.startDate,
+          yearEndDate: patch.endDate,
+        });
+      }
+    }
+  );
 }
 
 function promoteGradeAndClassName(
