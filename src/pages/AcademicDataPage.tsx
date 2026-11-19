@@ -16,6 +16,7 @@ import {
   copyAcademicYearStructure,
   createId,
   db,
+  deleteAcademicYearCascade,
   getCurrentAcademicYearDefaults,
   switchActiveAcademicYear,
   updateAcademicYearDetails,
@@ -103,6 +104,7 @@ export const AcademicDataPage: React.FC = () => {
   const [copyToolsAndBankFlag, setCopyToolsAndBankFlag] = useState(true);
   const [copyGradesCfgFlag, setCopyGradesCfgFlag] = useState(true);
   const [archiveSourceFlag, setArchiveSourceFlag] = useState(true);
+  const [deleteTargetYearId, setDeleteTargetYearId] = useState('');
 
   // Calendar event form
   const [evTitle, setEvTitle] = useState('');
@@ -254,6 +256,39 @@ export const AcademicDataPage: React.FC = () => {
     notify(
       `Tahun ajaran aktif disesuaikan ke tahun pelajaran berjalan: ${def.name} (Semester ${def.activeSemester}).`
     );
+  };
+
+  const handleDeleteAcademicYear = async (yearId: string) => {
+    const target = academicYears.find((y) => y.id === yearId);
+    if (!target) {
+      notify('Pilih tahun ajaran yang akan dihapus.', 'error');
+      return;
+    }
+    if (academicYears.length <= 1) {
+      notify(
+        'Minimal harus ada 1 tahun ajaran aktif. Buat tahun ajaran lain terlebih dahulu jika ingin menghapus tahun ini.',
+        'warning'
+      );
+      return;
+    }
+    const ok = await confirm({
+      title: `Hapus Tahun Ajaran ${target.name}?`,
+      message: `Seluruh kelas, siswa, perencanaan, perangkat, asesmen, presensi, jurnal, dan nilai pada Tahun Ajaran ${target.name} akan dihapus. Snapshot pemulihan otomatis akan dibuat sebelum penghapusan.`,
+      confirmLabel: 'Ya, Hapus Tahun Ajaran',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteAcademicYearCascade(yearId);
+      setDeleteTargetYearId('');
+      await refreshData();
+      notify(`Tahun ajaran ${target.name} berhasil dihapus.`);
+    } catch (err: unknown) {
+      notify(
+        err instanceof Error ? err.message : 'Gagal menghapus tahun ajaran.',
+        'error'
+      );
+    }
   };
 
   // ======================== HANDLERS: KALENDER ========================
@@ -630,6 +665,20 @@ export const AcademicDataPage: React.FC = () => {
                           <Archive className="w-3.5 h-3.5" />
                           <span>{yr.isArchived ? 'Buka Arsip' : 'Arsipkan'}</span>
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAcademicYear(yr.id)}
+                          disabled={academicYears.length <= 1}
+                          title={
+                            academicYears.length <= 1
+                              ? 'Minimal harus ada 1 tahun ajaran'
+                              : `Hapus Tahun Ajaran ${yr.name}`
+                          }
+                          className="px-2.5 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Hapus</span>
+                        </button>
                       </div>
                     </div>
                   )}
@@ -745,6 +794,41 @@ export const AcademicDataPage: React.FC = () => {
               <Copy className="w-4 h-4" />
               <span>Buat & Aktifkan Tahun Baru</span>
             </PrimaryButton>
+
+            <div className="pt-4 border-t border-slate-200 space-y-2.5">
+              <div className="text-xs font-semibold text-slate-800">
+                Hapus Tahun Ajaran Salah / Tidak Digunakan
+              </div>
+              <p className="text-xs text-slate-500">
+                Jika salah membuat tahun ajaran, pilih lalu hapus di sini (snapshot pemulihan dibuat otomatis).
+              </p>
+              <select
+                className={`${inputClass} text-xs font-mono`}
+                value={deleteTargetYearId}
+                onChange={(e) => setDeleteTargetYearId(e.target.value)}
+                disabled={academicYears.length <= 1}
+              >
+                <option value="">
+                  {academicYears.length <= 1
+                    ? 'Minimal harus ada 1 tahun ajaran'
+                    : '-- Pilih tahun ajaran yang akan dihapus --'}
+                </option>
+                {academicYears.map((y) => (
+                  <option key={y.id} value={y.id}>
+                    {y.name} {y.isActive ? '(Aktif)' : y.isArchived ? '(Arsip)' : ''}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={!deleteTargetYearId || academicYears.length <= 1}
+                onClick={() => handleDeleteAcademicYear(deleteTargetYearId)}
+                className="w-full px-3 py-2 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg inline-flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Hapus Tahun Ajaran Terpilih</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

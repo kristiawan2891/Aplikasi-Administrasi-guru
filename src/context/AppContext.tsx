@@ -292,16 +292,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         {toasts.map((t) => {
           const palette =
             t.type === 'error'
-              ? 'bg-red-950 text-white border-red-800'
+              ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white border-rose-500'
               : t.type === 'warning'
-                ? 'bg-amber-950 text-amber-50 border-amber-800'
+                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white border-amber-400'
                 : t.type === 'info'
-                  ? 'bg-slate-900 text-white border-slate-700'
-                  : 'bg-teal-900 text-white border-teal-700';
+                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-500'
+                  : 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-500';
           return (
             <div
               key={t.id}
-              className={`px-4 py-3 rounded-lg border shadow-lg text-sm flex items-start justify-between gap-3 ${palette}`}
+              className={`px-4 py-3 rounded-xl border shadow-lg text-sm font-medium flex items-start justify-between gap-3 ${palette}`}
             >
               <span>{t.message}</span>
               <button
@@ -309,7 +309,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
                 onClick={() =>
                   setToasts((prev) => prev.filter((x) => x.id !== t.id))
                 }
-                className="text-xs opacity-75 hover:opacity-100 shrink-0"
+                className="text-xs opacity-80 hover:opacity-100 shrink-0"
               >
                 Tutup
               </button>
@@ -321,36 +321,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       {/* Confirmation Modal */}
       {confirmState && (
         <div
-          className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4 no-print"
+          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 no-print"
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white border border-slate-200 rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-slate-900">
-              {confirmState.opts.title}
-            </h3>
-            <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-              {confirmState.opts.message}
-            </p>
-            <div className="mt-6 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => handleConfirmClose(false)}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap"
-              >
-                {confirmState.opts.cancelLabel || 'Batal'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleConfirmClose(true)}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors whitespace-nowrap ${
-                  confirmState.opts.danger
-                    ? 'bg-red-700 hover:bg-red-800'
-                    : 'bg-blue-800 hover:bg-blue-900'
-                }`}
-              >
-                {confirmState.opts.confirmLabel || 'Ya, Lanjutkan'}
-              </button>
+          <div className="bg-white border border-indigo-100 rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
+            <div
+              className={`h-1.5 w-full bg-gradient-to-r ${
+                confirmState.opts.danger
+                  ? 'from-rose-500 to-red-600'
+                  : 'from-blue-600 to-indigo-600'
+              }`}
+            />
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-slate-900">
+                {confirmState.opts.title}
+              </h3>
+              <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+                {confirmState.opts.message}
+              </p>
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleConfirmClose(false)}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap"
+                >
+                  {confirmState.opts.cancelLabel || 'Batal'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleConfirmClose(true)}
+                  className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-all whitespace-nowrap ${
+                    confirmState.opts.danger
+                      ? 'bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700'
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                  }`}
+                >
+                  {confirmState.opts.confirmLabel || 'Ya, Lanjutkan'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

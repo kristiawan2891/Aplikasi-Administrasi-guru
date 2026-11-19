@@ -357,6 +357,91 @@ export async function updateAcademicYearDetails(
   );
 }
 
+export async function deleteAcademicYearCascade(yearId: string): Promise<void> {
+  const years = await db.academicYears.toArray();
+  if (years.length <= 1) {
+    throw new Error(
+      'Minimal harus ada 1 tahun ajaran di sistem. Buat tahun ajaran lain terlebih dahulu sebelum menghapus.'
+    );
+  }
+  const target = years.find((y) => y.id === yearId);
+  if (!target) {
+    throw new Error('Tahun ajaran yang dipilih tidak ditemukan.');
+  }
+
+  await createAutoSnapshot(`Sebelum menghapus Tahun Ajaran ${target.name}`);
+
+  const remaining = years.filter((y) => y.id !== yearId);
+  const nextActive =
+    remaining.find((y) => !y.isArchived) ?? remaining[0];
+
+  await db.transaction(
+    'rw',
+    [
+      db.academicYears,
+      db.schoolProfile,
+      db.calendarConfigs,
+      db.calendarEvents,
+      db.classGroups,
+      db.students,
+      db.cps,
+      db.tps,
+      db.atps,
+      db.protas,
+      db.promes,
+      db.syllabi,
+      db.modules,
+      db.lkpds,
+      db.mediaItems,
+      db.questionBank,
+      db.assessments,
+      db.attendanceSessions,
+      db.journals,
+      db.gradeComponents,
+      db.studentGrades,
+      db.reportDescriptions,
+      db.monitoringOverrides,
+    ],
+    async () => {
+      const yearScopedTables = [
+        db.calendarConfigs,
+        db.calendarEvents,
+        db.classGroups,
+        db.students,
+        db.cps,
+        db.tps,
+        db.atps,
+        db.protas,
+        db.promes,
+        db.syllabi,
+        db.modules,
+        db.lkpds,
+        db.mediaItems,
+        db.questionBank,
+        db.assessments,
+        db.attendanceSessions,
+        db.journals,
+        db.gradeComponents,
+        db.studentGrades,
+        db.reportDescriptions,
+        db.monitoringOverrides,
+      ];
+      for (const tbl of yearScopedTables) {
+        await tbl.where('academicYearId').equals(yearId).delete();
+      }
+      await db.academicYears.delete(yearId);
+
+      if (target.isActive && nextActive) {
+        await db.academicYears.update(nextActive.id, { isActive: true });
+        await db.schoolProfile.update('default', {
+          academicYearText: nextActive.name,
+          activeSemester: nextActive.activeSemester,
+        });
+      }
+    }
+  );
+}
+
 function promoteGradeAndClassName(
   gradeLevel: string,
   className: string

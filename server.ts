@@ -109,13 +109,19 @@ async function startServer() {
         });
       }
 
-      const { prompt, systemInstruction, responseMimeType, responseSchema } =
-        req.body as {
-          prompt?: string;
-          systemInstruction?: string;
-          responseMimeType?: string;
-          responseSchema?: Record<string, unknown>;
-        };
+      const {
+        prompt,
+        systemInstruction,
+        responseMimeType,
+        responseSchema,
+        useGoogleSearch,
+      } = req.body as {
+        prompt?: string;
+        systemInstruction?: string;
+        responseMimeType?: string;
+        responseSchema?: Record<string, unknown>;
+        useGoogleSearch?: boolean;
+      };
 
       if (!prompt || typeof prompt !== 'string') {
         return res.status(400).json({ error: 'Prompt tidak boleh kosong.' });
@@ -125,21 +131,59 @@ async function startServer() {
       if (systemInstruction) {
         config.systemInstruction = systemInstruction;
       }
-      if (responseMimeType) {
-        config.responseMimeType = responseMimeType;
-      }
-      if (responseSchema) {
-        config.responseSchema = responseSchema;
+      if (useGoogleSearch) {
+        config.tools = [{ googleSearch: {} }];
+      } else {
+        if (responseMimeType) {
+          config.responseMimeType = responseMimeType;
+        }
+        if (responseSchema) {
+          config.responseSchema = responseSchema;
+        }
       }
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-4-hydrogen',
-        contents: prompt,
-        config,
-      });
+      let response;
+      let lastErr: unknown = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          response = await ai.models.generateContent({
+            model: 'gemini-4-hydrogen',
+            contents: prompt,
+            config,
+          });
+          lastErr = null;
+          break;
+        } catch (e: unknown) {
+          lastErr = e;
+          const msg = e instanceof Error ? e.message : '';
+          if (
+            attempt === 0 &&
+            !msg.includes('403') &&
+            !msg.includes('API_KEY_INVALID') &&
+            !msg.includes('PERMISSION_DENIED')
+          ) {
+            await new Promise((r) => setTimeout(r, 900));
+            continue;
+          }
+          throw e;
+        }
+      }
+      if (lastErr || !response) {
+        throw lastErr || new Error('Gagal menerima respons dari AI.');
+      }
+
+      const chunks =
+        response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+      const groundingLinks = chunks
+        .map((c: { web?: { uri?: string; title?: string } }) => ({
+          uri: c.web?.uri || '',
+          title: c.web?.title || '',
+        }))
+        .filter((l: { uri: string; title: string }) => Boolean(l.uri));
 
       return res.json({
         text: response.text ?? '',
+        groundingLinks,
       });
     } catch (err: unknown) {
       const message =

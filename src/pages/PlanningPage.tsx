@@ -27,7 +27,10 @@ import {
 import {
   KEMENDIKDASMEN_CP_REGULATIONS,
   type CpAiDraftItem,
+  type FullPlanningPackDraft,
   generateCpDraft,
+  generateFullPlanningPackAi,
+  generateSyllabusBatchAi,
   generateTpDraftsFromCp,
 } from '../services/aiService';
 import { calculateEffectiveWeeks } from '../services/effectiveWeeks';
@@ -43,6 +46,7 @@ import type {
   ATPDocument,
   CalendarConfig,
   CalendarEvent,
+  CurriculumType,
   DifficultyLevel,
   LearningObjectiveTP,
   LearningOutcomeCP,
@@ -139,6 +143,23 @@ export const PlanningPage: React.FC = () => {
 
   // PROMES filter
   const [promesSem, setPromesSem] = useState<SemesterNumber>(1);
+
+  // Full Auto Planning AI (CP -> TP -> ATP -> PROTA -> PROMES -> Silabus)
+  const [planCurriculum, setPlanCurriculum] = useState<CurriculumType>(
+    school?.curriculum || 'Kurikulum Merdeka'
+  );
+  useEffect(() => {
+    if (school?.curriculum) {
+      setPlanCurriculum(school.curriculum);
+    }
+  }, [school?.curriculum]);
+
+  const [fullPlanOpen, setFullPlanOpen] = useState(false);
+  const [planSemScope, setPlanSemScope] = useState<'both' | '1' | '2'>('both');
+  const [planFocusTopics, setPlanFocusTopics] = useState('');
+  const [fullPlanLoading, setFullPlanLoading] = useState(false);
+  const [fullPlanDraft, setFullPlanDraft] = useState<FullPlanningPackDraft | null>(null);
+  const [syllabusAiLoading, setSyllabusAiLoading] = useState(false);
 
   useEffect(() => {
     if (!activeYear) return;
@@ -811,27 +832,488 @@ export const PlanningPage: React.FC = () => {
     );
   };
 
+  const handleEnrichSyllabusAi = async () => {
+    if (!school || !teacher || !activeYear) return;
+    if (tps.length === 0) {
+      notify('Buat Tujuan Pembelajaran (TP) terlebih dahulu sebelum melengkapi Silabus dengan AI.', 'warning');
+      return;
+    }
+    setSyllabusAiLoading(true);
+    try {
+      const enriched = await generateSyllabusBatchAi({
+        ctx: {
+          school,
+          teacher,
+          academicYearName: activeYear.name,
+          semester: activeYear.activeSemester,
+        },
+        curriculum: planCurriculum,
+        tps,
+        cps,
+      });
+      const existingByTpId = new Map(syllabi.map((s) => [s.tpId, s]));
+      const items: SyllabusItem[] = tps.map((tp, idx) => {
+        const cp = cps.find((c) => c.id === tp.cpId);
+        const old = existingByTpId.get(tp.id);
+        const aiRow = enriched.find((e) => e.tpId === tp.id);
+        return {
+          id: old?.id || createId('syl'),
+          academicYearId: activeYear.id,
+          subject: cp?.subject || old?.subject || defaultSubject,
+          gradeLevel: tp.gradeLevel,
+          phase: cp?.phase || old?.phase || cpPhase,
+          semester: tp.semester,
+          cpId: tp.cpId,
+          tpId: tp.id,
+          material: tp.material,
+          learningActivities:
+            aiRow?.learningActivities || old?.learningActivities || `Pembelajaran ${tp.material}`,
+          method: aiRow?.method || old?.method || 'Diskusi, Eksplorasi',
+          media: aiRow?.media || old?.media || 'LKPD, Slide Presentasi',
+          resources: aiRow?.resources || old?.resources || `Buku Paket ${planCurriculum}`,
+          assessment: aiRow?.assessment || old?.assessment || 'Formatif & Sumatif',
+          hoursAllocation: tp.hoursAllocation,
+          orderIndex: old?.orderIndex ?? idx + 1,
+        };
+      });
+      await db.syllabi.bulkPut(items);
+      await refreshData();
+      notify(`Silabus ${planCurriculum} berhasil dilengkapi AI untuk ${items.length} TP.`);
+    } catch (err: unknown) {
+      notify(err instanceof Error ? err.message : 'Gagal menyusun Silabus dengan AI.', 'error');
+    } finally {
+      setSyllabusAiLoading(false);
+    }
+  };
+
+  const handleGenerateFullPlanningPack = async () => {
+    if (!school || !teacher || !activeYear) return;
+    setFullPlanLoading(true);
+    try {
+      const regText =
+        planCurriculum === 'Kurikulum Merdeka'
+          ? cpRef.trim() || defaultCpReg.label
+          : planCurriculum === 'Kurikulum 2013'
+            ? 'Permendikbud No. 37 Tahun 2018 (KI-KD Kurikulum 2013)'
+            : 'Kurikulum Tingkat Satuan Pendidikan (KTSP)';
+
+      const draft = await generateFullPlanningPackAi({
+        ctx: {
+          school,
+          teacher,
+          academicYearName: activeYear.name,
+          semester: activeYear.activeSemester,
+          effectiveWeeksCount: effectiveSummary?.totalEffectiveWeeks,
+        },
+        curriculum: planCurriculum,
+        subject: cpSubject.trim() || defaultSubject,
+        phase: cpPhase,
+        gradeLevel: cpGrade.trim() || '7',
+        regulation: regText,
+        semesterScope: planSemScope,
+        sem1Hours: effectiveSummary?.semester1.totalHoursAvailable ?? 36,
+        sem2Hours: effectiveSummary?.semester2.totalHoursAvailable ?? 36,
+        focusTopics: planFocusTopics,
+      });
+
+      setFullPlanDraft(draft);
+      notify(
+        `Draft perencanaan ${planCurriculum} (${draft.cps.length} CP, ${draft.tps.length} TP → Silabus) siap disimpan.`
+      );
+    } catch (err: unknown) {
+      notify(
+        err instanceof Error
+          ? err.message
+          : 'Gagal membuat paket perencanaan otomatis AI.',
+        'error'
+      );
+    } finally {
+      setFullPlanLoading(false);
+    }
+  };
+
+  const handleApplyFullPlanningPack = async (mode: 'append' | 'replace') => {
+    if (!activeYear || !fullPlanDraft) return;
+    if (
+      mode === 'replace' &&
+      (cps.length > 0 || tps.length > 0 || protas.length > 0 || syllabi.length > 0)
+    ) {
+      const ok = await confirm({
+        title: 'Ganti Seluruh Perencanaan Tahun Ini?',
+        message:
+          'Perencanaan lama (CP, TP, ATP, PROTA, PROMES, Silabus) pada tahun ajaran aktif akan diganti dengan paket AI baru. Snapshot pemulihan otomatis akan dibuat terlebih dahulu.',
+        confirmLabel: 'Ya, Ganti & Simpan',
+        danger: true,
+      });
+      if (!ok) return;
+      await createAutoSnapshot('Sebelum terapkan Paket Perencanaan AI (Replace)');
+    }
+
+    const now = new Date().toISOString();
+    const subjectVal = cpSubject.trim() || defaultSubject;
+    const gradeVal = cpGrade.trim() || '7';
+    const jpPerWeek = calConfig?.hoursPerWeek || 4;
+
+    const cpRecords: LearningOutcomeCP[] = fullPlanDraft.cps.map((c) => ({
+      id: createId('cp'),
+      academicYearId: activeYear.id,
+      subject: subjectVal,
+      phase: cpPhase,
+      gradeLevel: gradeVal,
+      element: c.element,
+      description: c.description,
+      referenceSource: c.referenceSource,
+      isAiDraft: true,
+      isVerified: true,
+      createdAt: now,
+    }));
+
+    const baseTpIdx = mode === 'replace' ? 0 : tps.length;
+    const tpRecords: LearningObjectiveTP[] = fullPlanDraft.tps.map((t, idx) => {
+      const parentCp = cpRecords[t.elementIndex] ?? cpRecords[0];
+      return {
+        id: createId('tp'),
+        academicYearId: activeYear.id,
+        cpId: parentCp.id,
+        code: t.code,
+        element: parentCp.element,
+        objective: t.objective,
+        material: t.material,
+        gradeLevel: gradeVal,
+        semester: t.semester,
+        hoursAllocation: t.hoursAllocation,
+        difficulty: t.difficulty,
+        orderIndex: baseTpIdx + idx + 1,
+        isAiDraft: true,
+        createdAt: now,
+      };
+    });
+
+    // Build ATP per semester
+    const newAtps: ATPDocument[] = [];
+    for (const sem of [1, 2] as const) {
+      const semTps = tpRecords.filter((t) => t.semester === sem);
+      if (semTps.length === 0) continue;
+      let wk = 1;
+      const items = semTps.map((tp, idx) => {
+        const wNeeded = Math.max(1, Math.ceil(tp.hoursAllocation / jpPerWeek));
+        const startW = wk;
+        const endW = wk + wNeeded - 1;
+        wk = endW + 1;
+        return {
+          tpId: tp.id,
+          orderIndex: idx + 1,
+          plannedWeekStart: startW,
+          plannedWeekEnd: endW,
+          hoursAllocation: tp.hoursAllocation,
+          notes: '',
+        };
+      });
+      newAtps.push({
+        id: createId('atp'),
+        academicYearId: activeYear.id,
+        subject: subjectVal,
+        gradeLevel: gradeVal,
+        phase: cpPhase,
+        semester: sem,
+        cpId: cpRecords[0].id,
+        title: `ATP ${subjectVal} Kelas ${gradeVal} Sem ${sem} (${planCurriculum})`,
+        items,
+        updatedAt: now,
+      });
+    }
+
+    // Build PROTA
+    let wkS1 = 1;
+    let wkS2 = 1;
+    const baseProtaIdx = mode === 'replace' ? 0 : protas.length;
+    const newProtas: ProtaItem[] = tpRecords.map((tp, idx) => {
+      const wNeeded = Math.max(1, Math.ceil(tp.hoursAllocation / jpPerWeek));
+      const startW = tp.semester === 1 ? wkS1 : wkS2;
+      const endW = startW + wNeeded - 1;
+      if (tp.semester === 1) wkS1 = endW + 1;
+      else wkS2 = endW + 1;
+      return {
+        id: createId('prota'),
+        academicYearId: activeYear.id,
+        gradeLevel: gradeVal,
+        subject: subjectVal,
+        semester: tp.semester,
+        cpId: tp.cpId,
+        tpId: tp.id,
+        material: tp.material,
+        hoursAllocation: tp.hoursAllocation,
+        plannedWeeks: `Minggu ${startW}–${endW}`,
+        notes: planCurriculum,
+        orderIndex: baseProtaIdx + idx + 1,
+      };
+    });
+
+    // Build PROMES & Silabus
+    const baseSylIdx = mode === 'replace' ? 0 : syllabi.length;
+    const newPromes: PromesItem[] = [];
+    const newSyllabi: SyllabusItem[] = [];
+
+    tpRecords.forEach((tp, idx) => {
+      const src = fullPlanDraft.tps[idx];
+      newPromes.push({
+        id: createId('promes'),
+        academicYearId: activeYear.id,
+        gradeLevel: gradeVal,
+        subject: subjectVal,
+        semester: tp.semester,
+        tpId: tp.id,
+        material: tp.material,
+        month: src.plannedMonth,
+        weekNumber: src.plannedWeek,
+        dateRange: '-',
+        hoursAllocation: tp.hoursAllocation,
+        activity: src.activity,
+        assessment: src.assessment,
+        notes: '',
+      });
+
+      newSyllabi.push({
+        id: createId('syl'),
+        academicYearId: activeYear.id,
+        subject: subjectVal,
+        gradeLevel: gradeVal,
+        phase: cpPhase,
+        semester: tp.semester,
+        cpId: tp.cpId,
+        tpId: tp.id,
+        material: tp.material,
+        learningActivities: src.learningActivities,
+        method: src.method,
+        media: src.media,
+        resources: src.resources,
+        assessment: src.assessment,
+        hoursAllocation: tp.hoursAllocation,
+        orderIndex: baseSylIdx + idx + 1,
+      });
+    });
+
+    await db.transaction(
+      'rw',
+      [db.cps, db.tps, db.atps, db.protas, db.promes, db.syllabi],
+      async () => {
+        if (mode === 'replace') {
+          await db.cps.where('academicYearId').equals(activeYear.id).delete();
+          await db.tps.where('academicYearId').equals(activeYear.id).delete();
+          await db.atps.where('academicYearId').equals(activeYear.id).delete();
+          await db.protas.where('academicYearId').equals(activeYear.id).delete();
+          await db.promes.where('academicYearId').equals(activeYear.id).delete();
+          await db.syllabi.where('academicYearId').equals(activeYear.id).delete();
+        }
+        await db.cps.bulkPut(cpRecords);
+        await db.tps.bulkPut(tpRecords);
+        await db.atps.bulkPut(newAtps);
+        await db.protas.bulkPut(newProtas);
+        await db.promes.bulkPut(newPromes);
+        await db.syllabi.bulkPut(newSyllabi);
+      }
+    );
+
+    if (newAtps[0]) setSelectedAtpId(newAtps[0].id);
+    setTpCpId(cpRecords[0]?.id || '');
+    setAtpCpSelect(cpRecords[0]?.id || '');
+    setFullPlanDraft(null);
+    setFullPlanOpen(false);
+    await refreshData();
+    notify(
+      `Perencanaan lengkap (${cpRecords.length} CP, ${tpRecords.length} TP, ${newAtps.length} ATP, ${newProtas.length} PROTA, ${newPromes.length} PROMES, ${newSyllabi.length} Silabus) berhasil disimpan otomatis.`
+    );
+  };
+
   const selectedAtp = atps.find((a) => a.id === selectedAtpId) ?? atps[0] ?? null;
   const semPromesList = promes.filter((p) => p.semester === promesSem);
 
   return (
     <div>
       <PageHeader
-        title="Perencanaan Pembelajaran (Kurikulum Merdeka)"
-        description="Alur terintegrasi dari CP → TP → ATP → PROTA → PROMES → Silabus yang mengacu langsung pada Minggu Efektif."
+        title={`Perencanaan Pembelajaran (${planCurriculum})`}
+        description="Alur terintegrasi dari CP → TP → ATP → PROTA → PROMES → Silabus yang dapat diisi manual atau dibuat otomatis oleh AI sesuai kurikulum."
         actions={
-          identityBundle && (cps.length > 0 || tps.length > 0) ? (
-            <DocxButton
-              label="Unduh CP & TP DOCX"
-              onClick={async () => {
-                const blob = await generateCpTpDocx(identityBundle, cps, tps);
-                await downloadDocxBlob(blob, `CP_TP_${activeYear?.name || ''}.docx`);
-                notify('Dokumen CP & TP DOCX diunduh.');
-              }}
-            />
-          ) : null
+          <div className="flex flex-wrap items-center gap-2">
+            <SecondaryButton onClick={() => setFullPlanOpen((prev) => !prev)}>
+              <Wand2 className="w-4 h-4 text-teal-700" />
+              <span>
+                {fullPlanOpen
+                  ? 'Tutup Generator AI Lengkap'
+                  : 'Buat Otomatis CP → Silabus (AI)'}
+              </span>
+            </SecondaryButton>
+            {identityBundle && (cps.length > 0 || tps.length > 0) && (
+              <DocxButton
+                label="Unduh CP & TP DOCX"
+                onClick={async () => {
+                  const blob = await generateCpTpDocx(identityBundle, cps, tps);
+                  await downloadDocxBlob(blob, `CP_TP_${activeYear?.name || ''}.docx`);
+                  notify('Dokumen CP & TP DOCX diunduh.');
+                }}
+              />
+            )}
+          </div>
         }
       />
+
+      {/* PANEL GENERATOR PERENCANAAN OTOMATIS LENGKAP (CP -> SILABUS) */}
+      {(fullPlanOpen || (cps.length === 0 && tps.length === 0)) && (
+        <div className="mb-6 bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/60 border border-emerald-200 rounded-xl overflow-hidden shadow-xs">
+          <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 to-teal-500" />
+          <div className="p-6 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold text-emerald-950">
+                Generator Perencanaan Otomatis Lengkap (CP → TP → ATP → PROTA → PROMES → Silabus)
+              </h3>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Pilih kurikulum dan identitas mata pelajaran, lalu AI menyusun seluruh perangkat perencanaan secara saling terhubung dalam satu langkah.
+              </p>
+            </div>
+            {cps.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setFullPlanOpen(false)}
+                className="text-xs font-medium text-slate-500 hover:text-slate-800"
+              >
+                Sembunyikan
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <FormField label="Kurikulum yang Digunakan">
+              <select
+                className={inputClass}
+                value={planCurriculum}
+                onChange={(e) => setPlanCurriculum(e.target.value as CurriculumType)}
+              >
+                <option value="Kurikulum Merdeka">Kurikulum Merdeka</option>
+                <option value="Kurikulum 2013">Kurikulum 2013</option>
+                <option value="KTSP / Sekolah">KTSP / Sekolah</option>
+              </select>
+            </FormField>
+            <FormField label="Mata Pelajaran">
+              <input
+                type="text"
+                className={inputClass}
+                value={cpSubject}
+                onChange={(e) => setCpSubject(e.target.value)}
+                placeholder="Contoh: Matematika"
+              />
+            </FormField>
+            <FormField label="Fase / Jenjang">
+              <select
+                className={inputClass}
+                value={cpPhase}
+                onChange={(e) => setCpPhase(e.target.value)}
+              >
+                {['A', 'B', 'C', 'D', 'E', 'F'].map((f) => (
+                  <option key={f} value={f}>
+                    Fase {f}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <FormField label="Kelas">
+              <input
+                type="text"
+                className={inputClass}
+                value={cpGrade}
+                onChange={(e) => setCpGrade(e.target.value)}
+                placeholder="7 / 8 / 9"
+              />
+            </FormField>
+            <FormField label="Cakupan Semester">
+              <select
+                className={inputClass}
+                value={planSemScope}
+                onChange={(e) => setPlanSemScope(e.target.value as 'both' | '1' | '2')}
+              >
+                <option value="both">1 Tahun (Sem 1 & 2)</option>
+                <option value="1">Semester 1 Saja</option>
+                <option value="2">Semester 2 Saja</option>
+              </select>
+            </FormField>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-end">
+            <div className="lg:col-span-2">
+              <FormField label="Fokus Materi / Bab Utama (Opsional — Kosongkan untuk Materi Standar Mapel)">
+                <input
+                  type="text"
+                  className={inputClass}
+                  value={planFocusTopics}
+                  onChange={(e) => setPlanFocusTopics(e.target.value)}
+                  placeholder="Contoh: Bilangan Bulat, Aljabar Linear, Persamaan Garis, Bangun Ruang..."
+                />
+              </FormField>
+            </div>
+            <AiActionButton
+              loading={fullPlanLoading}
+              onClick={handleGenerateFullPlanningPack}
+              className="w-full"
+            >
+              Generate Otomatis CP → Silabus (AI)
+            </AiActionButton>
+          </div>
+
+          {fullPlanDraft && (
+            <div className="p-4 bg-teal-50 border border-teal-200 rounded-lg space-y-3 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="font-semibold text-teal-900">
+                  Hasil Paket {planCurriculum}: {fullPlanDraft.cps.length} Elemen CP/KD ·{' '}
+                  {fullPlanDraft.tps.length} TP · ATP · PROTA · PROMES · Silabus
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <PrimaryButton onClick={() => handleApplyFullPlanningPack('append')}>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Tambahkan Semua ke Perencanaan</span>
+                  </PrimaryButton>
+                  {cps.length > 0 && (
+                    <SecondaryButton onClick={() => handleApplyFullPlanningPack('replace')}>
+                      Ganti Perencanaan Lama
+                    </SecondaryButton>
+                  )}
+                  <SecondaryButton onClick={() => setFullPlanDraft(null)}>
+                    Tutup Preview
+                  </SecondaryButton>
+                </div>
+              </div>
+              <p className="text-teal-800">{fullPlanDraft.note}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1">
+                <div className="bg-white border border-teal-200 rounded-lg p-3 space-y-1.5">
+                  <div className="font-semibold text-slate-900">
+                    Elemen CP / Kompetensi ({fullPlanDraft.cps.length})
+                  </div>
+                  {fullPlanDraft.cps.map((c, idx) => (
+                    <div key={idx} className="text-slate-700 border-t border-slate-100 pt-1">
+                      <span className="font-semibold text-blue-900">{c.element}:</span>{' '}
+                      {c.description}
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-white border border-teal-200 rounded-lg p-3 space-y-1.5">
+                  <div className="font-semibold text-slate-900">
+                    TP, PROTA, PROMES & Silabus ({fullPlanDraft.tps.length} unit)
+                  </div>
+                  {fullPlanDraft.tps.map((t, idx) => (
+                    <div key={idx} className="text-slate-700 border-t border-slate-100 pt-1">
+                      <span className="font-mono font-semibold text-blue-900">
+                        {t.code}
+                      </span>{' '}
+                      · S{t.semester} ({t.plannedMonth} M{t.plannedWeek}, {t.hoursAllocation} JP) —{' '}
+                      <span className="font-medium">{t.material}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          </div>
+        </div>
+      )}
 
       <SegmentedTabs
         tabs={[
@@ -1933,6 +2415,13 @@ export const PlanningPage: React.FC = () => {
               Silabus terintegrasi langsung dengan CP, TP, Metode, Media, Sumber Belajar, dan Asesmen.
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <AiActionButton
+                loading={syllabusAiLoading}
+                onClick={handleEnrichSyllabusAi}
+                disabled={tps.length === 0}
+              >
+                Lengkapi Silabus dengan AI
+              </AiActionButton>
               <PrimaryButton onClick={() => handleGenerateSyllabus(false)}>
                 <Wand2 className="w-4 h-4" />
                 <span>
